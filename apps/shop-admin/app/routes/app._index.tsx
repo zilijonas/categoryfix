@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
-import { useLoaderData } from "react-router";
+import { startTransition, useEffect, useState } from "react";
+import { Link, useLoaderData, useRevalidator } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
-import { getLatestScanRunForShop, getShopSettings } from "@categoryfix/db";
-import { prisma } from "../db.server.js";
-import { serializeScanPayload } from "../lib/scans.server.js";
+import {
+  createScanDashboardResponse,
+  type ScanDashboardPayload,
+} from "../lib/scan-review.server.js";
 import { authenticate } from "../shopify.server.js";
+import { prisma } from "../db.server.js";
 
-interface ScanPayload {
+interface ScanStatusPayload {
   scanRun: {
     id: string;
     status: string;
@@ -29,22 +31,13 @@ interface ScanPayload {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const installation = await getShopSettings(session.shop, prisma);
-  const shopRecord = await prisma.shop.findUnique({
-    where: { shop: session.shop },
-    select: { id: true },
+  const response = await createScanDashboardResponse({
+    request,
+    authenticateAdmin: authenticate.admin,
+    database: prisma,
   });
-  const latestScanRun = shopRecord ? await getLatestScanRunForShop(shopRecord.id, prisma) : null;
 
-  return {
-    healthEndpoint: "/api/v1/health",
-    installation,
-    latestScan: serializeScanPayload(latestScanRun),
-    scanEndpoint: "/api/v1/scans",
-    settingsEndpoint: "/api/v1/shop/settings",
-    shop: session.shop,
-  };
+  return (await response.json()) as ScanDashboardPayload;
 };
 
 function formatTimestamp(value: string | null) {
@@ -58,13 +51,28 @@ function formatTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
-function isActiveScan(payload: ScanPayload) {
+function isActiveScan(payload: ScanStatusPayload) {
   return payload.scanRun?.status === "PENDING" || payload.scanRun?.status === "RUNNING";
+}
+
+function renderStatusTone(status: string) {
+  switch (status) {
+    case "SUCCEEDED":
+      return "#1f7a1f";
+    case "FAILED":
+      return "#8a1f17";
+    case "RUNNING":
+    case "PENDING":
+      return "#6f4e00";
+    default:
+      return "#444";
+  }
 }
 
 export default function AppIndexRoute() {
   const data = useLoaderData<typeof loader>();
-  const [scanPayload, setScanPayload] = useState<ScanPayload>(data.latestScan);
+  const revalidator = useRevalidator();
+  const [scanPayload, setScanPayload] = useState<ScanStatusPayload>(data.latestScan);
   const [isStarting, setIsStarting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -81,7 +89,7 @@ export default function AppIndexRoute() {
 
     const poll = async () => {
       const response = await fetch(`/api/v1/scans/${scanPayload.scanRun?.id}`);
-      const payload = (await response.json()) as ScanPayload | { error?: string };
+      const payload = (await response.json()) as ScanStatusPayload | { error?: string };
 
       if (cancelled) {
         return;
@@ -92,7 +100,14 @@ export default function AppIndexRoute() {
         return;
       }
 
-      setScanPayload(payload as ScanPayload);
+      const nextPayload = payload as ScanStatusPayload;
+      setScanPayload(nextPayload);
+
+      if (!isActiveScan(nextPayload)) {
+        startTransition(() => {
+          revalidator.revalidate();
+        });
+      }
     };
 
     void poll();
@@ -104,7 +119,7 @@ export default function AppIndexRoute() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [scanPayload.scanRun?.id, scanPayload.scanRun?.status]);
+  }, [revalidator, scanPayload.scanRun?.id, scanPayload.scanRun?.status]);
 
   const startScan = async () => {
     setIsStarting(true);
@@ -118,7 +133,7 @@ export default function AppIndexRoute() {
         },
         body: JSON.stringify({ trigger: "MANUAL" }),
       });
-      const payload = (await response.json()) as ScanPayload | { error?: string };
+      const payload = (await response.json()) as ScanStatusPayload | { error?: string };
 
       if (!response.ok && response.status !== 409) {
         setErrorMessage(
@@ -129,7 +144,10 @@ export default function AppIndexRoute() {
         return;
       }
 
-      setScanPayload(payload as ScanPayload);
+      setScanPayload(payload as ScanStatusPayload);
+      startTransition(() => {
+        revalidator.revalidate();
+      });
     } catch {
       setErrorMessage("The scan could not be started.");
     } finally {
@@ -137,15 +155,19 @@ export default function AppIndexRoute() {
     }
   };
 
+  const latestReviewPath = scanPayload.scanRun
+    ? `/app/scans/${scanPayload.scanRun.id}`
+    : data.reviewPath;
   const scanIsRunning = isActiveScan(scanPayload);
 
   return (
-    <s-page heading="CategoryFix">
-      <s-section heading="Phase 3 deterministic scan">
+    <s-page heading="CategoryFix review">
+      <s-section heading="Merchant review workspace">
         <div style={{ display: "grid", gap: "0.75rem" }}>
           <p style={{ margin: 0 }}>
-            Start a conservative catalog scan that generates explainable
-            recommendations without applying any writes.
+            Inspect explainable category suggestions before any write occurs.
+            Safe deterministic findings can be bulk accepted, while review-only
+            suggestions stay visibly uncertain.
           </p>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button
@@ -157,10 +179,16 @@ export default function AppIndexRoute() {
             >
               {isStarting ? "Starting scan..." : scanIsRunning ? "Scan running" : "Start scan"}
             </button>
+            {latestReviewPath ? <Link to={latestReviewPath}>Open latest review</Link> : null}
             <a href={data.scanEndpoint}>Latest scan JSON</a>
           </div>
           {errorMessage ? (
             <p style={{ margin: 0, color: "#8a1f17" }}>{errorMessage}</p>
+          ) : null}
+          {scanPayload.scanRun?.failureSummary ? (
+            <p style={{ margin: 0, color: "#8a1f17" }}>
+              Latest failure: {scanPayload.scanRun.failureSummary}
+            </p>
           ) : null}
         </div>
       </s-section>
@@ -168,7 +196,10 @@ export default function AppIndexRoute() {
       <s-section heading="Latest scan">
         <div style={{ display: "grid", gap: "0.5rem" }}>
           <p style={{ margin: 0 }}>
-            Status: {scanPayload.scanRun?.status ?? "No scan recorded yet"}
+            Status:{" "}
+            <strong style={{ color: renderStatusTone(scanPayload.scanRun?.status ?? "UNKNOWN") }}>
+              {scanPayload.scanRun?.status ?? "No scan recorded yet"}
+            </strong>
           </p>
           <p style={{ margin: 0 }}>
             Started: {formatTimestamp(scanPayload.scanRun?.startedAt ?? null)}
@@ -182,6 +213,12 @@ export default function AppIndexRoute() {
           <p style={{ margin: 0 }}>
             Findings persisted: {scanPayload.scanRun?.findingCount ?? 0}
           </p>
+          <p style={{ margin: 0 }}>
+            Accepted for future apply: {scanPayload.scanRun?.acceptedFindingCount ?? 0}
+          </p>
+          <p style={{ margin: 0 }}>
+            Dismissed: {scanPayload.scanRun?.rejectedFindingCount ?? 0}
+          </p>
           <p style={{ margin: 0 }}>Exact: {scanPayload.confidenceCounts.exact}</p>
           <p style={{ margin: 0 }}>Strong: {scanPayload.confidenceCounts.strong}</p>
           <p style={{ margin: 0 }}>
@@ -190,12 +227,47 @@ export default function AppIndexRoute() {
           <p style={{ margin: 0 }}>
             No safe suggestion: {scanPayload.confidenceCounts.noSafeSuggestion}
           </p>
-          {scanPayload.scanRun?.failureSummary ? (
-            <p style={{ margin: 0, color: "#8a1f17" }}>
-              Failure: {scanPayload.scanRun.failureSummary}
-            </p>
-          ) : null}
         </div>
+      </s-section>
+
+      <s-section heading="Scan history">
+        {data.scanHistory.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th align="left">Run</th>
+                  <th align="left">Status</th>
+                  <th align="left">Completed</th>
+                  <th align="right">Findings</th>
+                  <th align="right">Accepted</th>
+                  <th align="right">Dismissed</th>
+                  <th align="left">Review</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.scanHistory.map((scan) => (
+                  <tr key={scan.id}>
+                    <td style={{ padding: "0.4rem 0" }}>{scan.id}</td>
+                    <td style={{ color: renderStatusTone(scan.status) }}>{scan.status}</td>
+                    <td>{formatTimestamp(scan.completedAt)}</td>
+                    <td align="right">{scan.findingCount}</td>
+                    <td align="right">{scan.acceptedFindingCount}</td>
+                    <td align="right">{scan.rejectedFindingCount}</td>
+                    <td>
+                      <Link to={`/app/scans/${scan.id}`}>Open review</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>
+            No scan history yet. Start a scan to generate deterministic review
+            suggestions.
+          </p>
+        )}
       </s-section>
 
       <s-section heading="Current shop">
@@ -213,14 +285,6 @@ export default function AppIndexRoute() {
           <s-text>
             Installed at: {data.installation?.installedAt ?? "Not recorded yet"}
           </s-text>
-        </s-stack>
-      </s-section>
-
-      <s-section heading="Phase endpoints">
-        <s-stack direction="block" gap="small">
-          <s-link href={data.healthEndpoint}>{data.healthEndpoint}</s-link>
-          <s-link href={data.settingsEndpoint}>{data.settingsEndpoint}</s-link>
-          <s-link href={data.scanEndpoint}>{data.scanEndpoint}</s-link>
         </s-stack>
       </s-section>
     </s-page>

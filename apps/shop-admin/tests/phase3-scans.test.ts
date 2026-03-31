@@ -112,9 +112,9 @@ function createMockDatabase() {
   ];
   let scanSequence = 1;
 
-  const database: Phase3DatabaseClient = {
+  const database = {
     shop: {
-      async findUnique(args) {
+      async findUnique(args: any) {
         const record = shops.find((shop) => shop.shop === args.where.shop) ?? null;
 
         if (!record) {
@@ -129,7 +129,7 @@ function createMockDatabase() {
       },
     },
     scanRun: {
-      async create(args) {
+      async create(args: any) {
         const now = new Date();
         const record: MockScanRun = {
           id: `scan_run_${scanSequence++}`,
@@ -154,7 +154,7 @@ function createMockDatabase() {
 
         return record as any;
       },
-      async findFirst(args) {
+      async findFirst(args: any) {
         const matches = scanRuns
           .filter((scanRun) => scanRun.shopId === args.where?.shopId)
           .filter((scanRun) => {
@@ -166,10 +166,10 @@ function createMockDatabase() {
 
         return (matches[0] ?? null) as any;
       },
-      async findUnique(args) {
+      async findUnique(args: any) {
         return (scanRuns.find((scanRun) => scanRun.id === args.where.id) ?? null) as any;
       },
-      async update(args) {
+      async update(args: any) {
         const record = scanRuns.find((scanRun) => scanRun.id === args.where.id);
 
         if (!record) {
@@ -182,7 +182,7 @@ function createMockDatabase() {
       },
     },
     scanFinding: {
-      async createMany(args) {
+      async createMany(args: any) {
         let count = 0;
 
         for (const row of args.data) {
@@ -205,14 +205,14 @@ function createMockDatabase() {
 
         return { count };
       },
-      async findMany(args) {
+      async findMany(args: any) {
         return scanFindings
           .filter((finding) => finding.scanRunId === args.where?.scanRunId)
           .map((finding) => ({ confidence: finding.confidence }));
       },
     },
     ruleDefinition: {
-      async upsert(args) {
+      async upsert(args: any) {
         const existing = ruleDefinitions.find((definition) => definition.key === args.where.key);
 
         if (existing) {
@@ -233,14 +233,14 @@ function createMockDatabase() {
       async findFirst() {
         return taxonomyVersions[0] as any;
       },
-      async findUnique(args) {
+      async findUnique(args: any) {
         return (
           taxonomyVersions.find((version) => version.id === args.where.id) ?? null
         ) as any;
       },
     },
     taxonomyCategory: {
-      async findMany(args) {
+      async findMany(args: any) {
         return taxonomyCategories
           .filter((category) => category.taxonomyVersionId === args.where?.taxonomyVersionId)
           .filter((category) => (args.where?.isLeaf ? category.isLeaf === args.where.isLeaf : true))
@@ -254,7 +254,7 @@ function createMockDatabase() {
       },
     },
     taxonomyCategoryTerm: {
-      async findMany(args) {
+      async findMany(args: any) {
         return taxonomyTerms.filter(
           (term) =>
             term.taxonomyVersionId === args.where?.taxonomyVersionId &&
@@ -263,11 +263,11 @@ function createMockDatabase() {
       },
     },
     manualOverride: {
-      async findMany(args) {
+      async findMany(args: any) {
         const productIds =
-          args.where.OR.find((entry) => "productId" in entry)?.productId.in ?? [];
+          args.where.OR.find((entry: any) => "productId" in entry)?.productId.in ?? [];
         const productGids =
-          args.where.OR.find((entry) => "productGid" in entry)?.productGid.in ?? [];
+          args.where.OR.find((entry: any) => "productGid" in entry)?.productGid.in ?? [];
 
         return manualOverrides.filter(
           (override) =>
@@ -277,7 +277,10 @@ function createMockDatabase() {
         );
       },
     },
-  } as Phase3DatabaseClient;
+    async $transaction(callback: any) {
+      return callback(database as Phase3DatabaseClient);
+    },
+  } as unknown as Phase3DatabaseClient;
 
   return {
     database,
@@ -298,7 +301,7 @@ function createOfflineAdminContext(admin: ShopifyAdminApi): OfflineAdminContext 
       id: "offline_demo",
       shop: "demo.myshopify.com",
     },
-    admin,
+    admin: admin as any,
   };
 }
 

@@ -10,6 +10,7 @@
     "lint": "pnpm typecheck",
     "start": "react-router-serve ./build/server/index.js",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "typecheck": "react-router typegen && tsc --noEmit"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@prisma/client": "^6.19.2",
     "@shopify/polaris-types": "1.0.1",
     "@types/node": "^22.18.8",

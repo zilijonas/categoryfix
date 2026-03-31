@@ -55,12 +55,19 @@ export async function resolveOfflineAdminContext(
       : await loadShopifyOfflineHelpers();
   const loadOfflineSession =
     args.loadOfflineSession ??
-    (async (offlineSessionId: string) =>
-      (await shopifyHelpers?.sessionStorage.loadSession(offlineSessionId)) as
+    (async (offlineSessionId: string) => {
+      const sessionStorage = shopifyHelpers?.sessionStorage;
+
+      if (!sessionStorage) {
+        throw new Error("Shopify session storage is unavailable.");
+      }
+
+      return (await sessionStorage.loadSession(offlineSessionId)) as
         | OfflineSessionRecord
-        | null);
+        | null;
+    });
   const getUnauthenticatedAdmin =
-    args.getUnauthenticatedAdmin ?? shopifyHelpers?.unauthenticated.admin;
+    args.getUnauthenticatedAdmin ?? shopifyHelpers?.unauthenticated?.admin;
 
   const shopRecord = await database.shop.findUnique({
     where: { shop: args.shop },

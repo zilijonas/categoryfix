@@ -1,0 +1,7 @@
+name = "CategoryFix Shop Admin"
+roles = ["frontend", "backend"]
+webhooks_path = "/webhooks/app/uninstalled"
+
+[commands]
+predev = "pnpm --filter @categoryfix/db prisma:generate"
+dev = "pnpm --filter @categoryfix/db prisma:migrate:deploy && pnpm exec react-router dev"

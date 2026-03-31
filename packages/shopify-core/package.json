@@ -1,0 +1,20 @@
+{
+  "name": "@categoryfix/shopify-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Shopify auth, config, and webhook helpers for CategoryFix.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@categoryfix/db": "workspace:*",
+    "@prisma/client": "^6.16.3",
+    "@shopify/shopify-app-react-router": "^1.1.0",
+    "@shopify/shopify-app-session-storage-prisma": "^9.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

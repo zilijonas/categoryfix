@@ -2,14 +2,15 @@
 
 CategoryFix is a Shopify app for detecting, reviewing, and safely fixing missing or incorrect product categorization.
 
-This repository currently implements the foundation and phase 1 shell:
+This repository currently implements the foundation, phase 1 shell, and phase 2 data foundation:
 
 - `pnpm` monorepo structure
 - governance rules for future AI coding agents
 - architecture and product documentation
 - a Shopify React Router embedded app baseline
-- Prisma-backed PostgreSQL session and install state
+- Prisma-backed PostgreSQL session state, canonical shop records, and phase 2 audit/taxonomy tables
 - mandatory webhook handlers and versioned health/settings endpoints
+- a local versioned taxonomy snapshot package with seed/import helpers
 
 ## Repository Layout
 
@@ -21,7 +22,7 @@ packages/
   db/                Prisma schema, migrations, and database helpers
   domain/            Deterministic business logic package placeholder
   shopify-core/      Shopify auth, config, and webhook helpers
-  taxonomy-data/     Taxonomy dataset package placeholder
+  taxonomy-data/     Versioned taxonomy snapshot and seed helpers
   config-eslint/     Shared eslint config package
   config-typescript/ Shared tsconfig package
 docs/
@@ -36,7 +37,7 @@ docs/
 
 ## Current Phase
 
-The repo has completed Phase 0 and now contains the Phase 1 embedded app/auth baseline from `ROADMAP.md`.
+The repo has completed Phase 0, Phase 1, and now includes the Phase 2 data foundation from `ROADMAP.md`.
 
 The main runtime lives in `apps/shop-admin` and follows the official Shopify React Router auth/session model.
 

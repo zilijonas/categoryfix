@@ -7,7 +7,8 @@ Current contents:
 - Prisma schema
 - migrations
 - generated client support
-- shop installation and session helpers for app runtimes
+- shop/session helpers for app runtimes
+- scan, apply, rollback, audit, and taxonomy persistence primitives
 
 Rules:
 
@@ -17,5 +18,9 @@ Rules:
 
 Phase 1 models:
 
+Current models:
+
 - `Session` for Shopify session persistence
-- `ShopInstallation` for install state, scopes, app URL, and uninstall cleanup
+- `Shop` as the canonical merchant record and install state anchor
+- immutable scan, apply, rollback, and audit tables for later phases
+- versioned taxonomy reference tables for local lookup and seeding

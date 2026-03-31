@@ -10,7 +10,7 @@ import { ShopInstallationState } from "@prisma/client";
 
 function createDatabaseMock(): DatabaseClient {
   return {
-    shopInstallation: {
+    shop: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
@@ -35,7 +35,7 @@ describe("database helpers", () => {
   });
 
   it("persists an installed shop from the offline session", async () => {
-    const upsert = vi.mocked(database.shopInstallation.upsert);
+    const upsert = vi.mocked(database.shop.upsert);
     upsert.mockResolvedValue({
       id: "install_1",
       shop: "demo.myshopify.com",
@@ -73,7 +73,7 @@ describe("database helpers", () => {
   });
 
   it("marks app/uninstalled as idempotent cleanup", async () => {
-    const upsert = vi.mocked(database.shopInstallation.upsert);
+    const upsert = vi.mocked(database.shop.upsert);
     const deleteMany = vi.mocked(database.session.deleteMany);
     upsert.mockResolvedValue({
       id: "install_1",
@@ -99,7 +99,7 @@ describe("database helpers", () => {
   });
 
   it("reads the current installation snapshot", async () => {
-    vi.mocked(database.shopInstallation.findUnique).mockResolvedValue({
+    vi.mocked(database.shop.findUnique).mockResolvedValue({
       id: "install_1",
       shop: "demo.myshopify.com",
       state: ShopInstallationState.INSTALLED,

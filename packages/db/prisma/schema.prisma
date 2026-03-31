@@ -12,6 +12,74 @@ enum ShopInstallationState {
   UNINSTALLED
 }
 
+enum ScanRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum ScanRunTrigger {
+  MANUAL
+  INSTALL
+  WEBHOOK
+  SCHEDULED
+}
+
+enum ScanFindingConfidence {
+  EXACT
+  STRONG
+  REVIEW_REQUIRED
+  NO_SAFE_SUGGESTION
+}
+
+enum ScanFindingStatus {
+  OPEN
+  ACCEPTED
+  DISMISSED
+  APPLIED
+  ROLLED_BACK
+}
+
+enum RuleDefinitionState {
+  ACTIVE
+  INACTIVE
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  PARTIALLY_SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum AuditActorType {
+  SYSTEM
+  USER
+  SHOPIFY
+}
+
+enum ShopSubscriptionStatus {
+  INACTIVE
+  PENDING
+  ACTIVE
+  CANCELED
+}
+
+enum BillingEventType {
+  PLACEHOLDER
+}
+
+enum TaxonomyCategoryTermKind {
+  PRIMARY_NAME
+  KEYWORD
+  ALIAS
+  PATH
+}
+
 model Session {
   id                  String    @id
   shop                String
@@ -34,7 +102,7 @@ model Session {
   @@index([shop])
 }
 
-model ShopInstallation {
+model Shop {
   id                   String                @id @default(cuid())
   shop                 String                @unique
   state                ShopInstallationState @default(INSTALLED)
@@ -44,6 +112,303 @@ model ShopInstallation {
   accessTokenExpiresAt DateTime?
   installedAt          DateTime              @default(now())
   uninstalledAt        DateTime?
+  scanRuns             ScanRun[]
+  scanFindings         ScanFinding[]
+  manualOverrides      ManualOverride[]
+  applyJobs            ApplyJob[]
+  rollbackJobs         RollbackJob[]
+  auditEvents          AuditEvent[]
+  shopSubscriptions    ShopSubscription[]
+  billingEvents        BillingEvent[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
+}
+
+model ScanRun {
+  id                   String          @id @default(cuid())
+  shopId               String
+  shop                 Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  status               ScanRunStatus   @default(PENDING)
+  trigger              ScanRunTrigger
+  source               String
+  externalOperationId  String?
+  externalOperationStatus String?
+  taxonomyVersionId    String?
+  taxonomyVersion      TaxonomyVersion? @relation(fields: [taxonomyVersionId], references: [id], onDelete: SetNull)
+  scannedProductCount  Int             @default(0)
+  findingCount         Int             @default(0)
+  acceptedFindingCount Int             @default(0)
+  rejectedFindingCount Int             @default(0)
+  failureSummary       String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  findings             ScanFinding[]
+  auditEvents          AuditEvent[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([shopId, createdAt])
+  @@index([shopId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model ScanFinding {
+  id                     String                @id @default(cuid())
+  shopId                 String
+  shop                   Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  scanRunId              String
+  scanRun                ScanRun               @relation(fields: [scanRunId], references: [id], onDelete: Cascade)
+  productId              String
+  productGid             String
+  productHandle          String?
+  productTitle           String
+  evidence               Json
+  explanation            Json
+  currentCategoryId      String?
+  currentCategoryGid     String?
+  recommendedCategoryId  String?
+  recommendedCategoryGid String?
+  confidence             ScanFindingConfidence
+  status                 ScanFindingStatus     @default(OPEN)
+  source                 String
+  applyJobItems          ApplyJobItem[]
+  createdAt              DateTime              @default(now())
+
+  @@unique([scanRunId, productId])
+  @@index([shopId, productId])
+  @@index([scanRunId, status])
+}
+
+model ManualOverride {
+  id               String       @id @default(cuid())
+  shopId           String
+  shop             Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId        String
+  productGid       String
+  targetCategoryId String?
+  targetCategoryGid String?
+  reason           String
+  actor            String
+  active           Boolean      @default(true)
+  supersededAt     DateTime?
+  auditEvents      AuditEvent[]
+  createdAt        DateTime     @default(now())
+
+  @@index([shopId, productId, active])
+  @@index([shopId, createdAt])
+}
+
+model RuleDefinition {
+  id            String              @id @default(cuid())
+  key           String              @unique
+  version       String
+  description   String
+  priority      Int                 @default(100)
+  state         RuleDefinitionState @default(ACTIVE)
+  configuration Json
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model ApplyJob {
+  id                   String        @id @default(cuid())
+  shopId               String
+  shop                 Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  status               JobStatus     @default(PENDING)
+  source               String
+  reason               String
+  actor                String
+  selectedFindingCount Int           @default(0)
+  appliedCount         Int           @default(0)
+  failedCount          Int           @default(0)
+  startedAt            DateTime?
+  completedAt          DateTime?
+  items                ApplyJobItem[]
+  rollbackJobs         RollbackJob[]
+  auditEvents          AuditEvent[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([shopId, createdAt])
+}
+
+model ApplyJobItem {
+  id           String        @id @default(cuid())
+  applyJobId   String
+  applyJob     ApplyJob      @relation(fields: [applyJobId], references: [id], onDelete: Cascade)
+  scanFindingId String?
+  scanFinding  ScanFinding?  @relation(fields: [scanFindingId], references: [id], onDelete: SetNull)
+  productId    String
+  productGid   String
+  before       Json
+  after        Json
+  source       String
+  reason       String
+  actor        String
+  status       JobStatus     @default(PENDING)
+  errorMessage String?
+  appliedAt    DateTime?
+  rollbackJobItems RollbackJobItem[]
+  auditEvents  AuditEvent[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([applyJobId, productId])
+  @@index([applyJobId, status])
+}
+
+model RollbackJob {
+  id                String          @id @default(cuid())
+  shopId            String
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  applyJobId        String?
+  applyJob          ApplyJob?       @relation(fields: [applyJobId], references: [id], onDelete: SetNull)
+  status            JobStatus       @default(PENDING)
+  source            String
+  reason            String
+  actor             String
+  selectedItemCount Int             @default(0)
+  rolledBackCount   Int             @default(0)
+  failedCount       Int             @default(0)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  items             RollbackJobItem[]
+  auditEvents       AuditEvent[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([shopId, createdAt])
+}
+
+model RollbackJobItem {
+  id            String         @id @default(cuid())
+  rollbackJobId String
+  rollbackJob   RollbackJob    @relation(fields: [rollbackJobId], references: [id], onDelete: Cascade)
+  applyJobItemId String?
+  applyJobItem  ApplyJobItem?  @relation(fields: [applyJobItemId], references: [id], onDelete: SetNull)
+  productId     String
+  productGid    String
+  before        Json
+  after         Json
+  source        String
+  reason        String
+  actor         String
+  status        JobStatus      @default(PENDING)
+  errorMessage  String?
+  rolledBackAt  DateTime?
+  auditEvents   AuditEvent[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([rollbackJobId, productId])
+  @@index([rollbackJobId, status])
+}
+
+model AuditEvent {
+  id                String         @id @default(cuid())
+  shopId            String
+  shop              Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  eventType         String
+  actorType         AuditActorType
+  actor             String
+  source            String
+  reason            String?
+  payload           Json?
+  scanRunId         String?
+  scanRun           ScanRun?       @relation(fields: [scanRunId], references: [id], onDelete: SetNull)
+  manualOverrideId  String?
+  manualOverride    ManualOverride? @relation(fields: [manualOverrideId], references: [id], onDelete: SetNull)
+  applyJobId        String?
+  applyJob          ApplyJob?      @relation(fields: [applyJobId], references: [id], onDelete: SetNull)
+  applyJobItemId    String?
+  applyJobItem      ApplyJobItem?  @relation(fields: [applyJobItemId], references: [id], onDelete: SetNull)
+  rollbackJobId     String?
+  rollbackJob       RollbackJob?   @relation(fields: [rollbackJobId], references: [id], onDelete: SetNull)
+  rollbackJobItemId String?
+  rollbackJobItem   RollbackJobItem? @relation(fields: [rollbackJobItemId], references: [id], onDelete: SetNull)
+  createdAt         DateTime       @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model ShopSubscription {
+  id                String                 @id @default(cuid())
+  shopId            String
+  shop              Shop                   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  status            ShopSubscriptionStatus @default(INACTIVE)
+  planHandle        String?
+  externalReference String?
+  activatedAt       DateTime?
+  canceledAt        DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([shopId, status])
+}
+
+model BillingEvent {
+  id                String           @id @default(cuid())
+  shopId            String
+  shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  eventType         BillingEventType
+  externalReference String?
+  payload           Json?
+  occurredAt        DateTime?
+  createdAt         DateTime         @default(now())
+
+  @@index([shopId, eventType])
+}
+
+model TaxonomyVersion {
+  id         String             @id @default(cuid())
+  version    String
+  locale     String
+  source     String
+  sourceUrl  String?
+  releasedAt DateTime?
+  importedAt DateTime?
+  categories TaxonomyCategory[]
+  scanRuns   ScanRun[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@unique([version, locale])
+  @@index([releasedAt, createdAt])
+}
+
+model TaxonomyCategory {
+  id                String               @id @default(cuid())
+  taxonomyVersionId String
+  taxonomyVersion   TaxonomyVersion      @relation(fields: [taxonomyVersionId], references: [id], onDelete: Cascade)
+  taxonomyId        String
+  taxonomyGid       String
+  name              String
+  fullPath          String
+  parentTaxonomyId  String?
+  level             Int
+  isLeaf            Boolean
+  terms             TaxonomyCategoryTerm[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([taxonomyVersionId, taxonomyId])
+  @@unique([taxonomyVersionId, taxonomyGid])
+  @@unique([taxonomyVersionId, fullPath])
+  @@index([taxonomyVersionId, name])
+  @@index([taxonomyVersionId, parentTaxonomyId])
+}
+
+model TaxonomyCategoryTerm {
+  id                String                   @id @default(cuid())
+  taxonomyVersionId String
+  taxonomyId        String
+  category          TaxonomyCategory         @relation(fields: [taxonomyVersionId, taxonomyId], references: [taxonomyVersionId, taxonomyId], onDelete: Cascade)
+  kind              TaxonomyCategoryTermKind
+  term              String
+  normalizedTerm    String
+  createdAt         DateTime                 @default(now())
+
+  @@unique([taxonomyVersionId, taxonomyId, kind, normalizedTerm])
+  @@index([taxonomyVersionId, normalizedTerm])
 }

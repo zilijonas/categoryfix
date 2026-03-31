@@ -21,7 +21,7 @@ describe("phase 1 route helpers", () => {
         apiVersion: ApiVersion.October25,
       },
       database: {
-        shopInstallation: {
+        shop: {
           findUnique: vi.fn(),
           upsert: vi.fn(),
         },
@@ -46,7 +46,7 @@ describe("phase 1 route helpers", () => {
         session: { shop: "demo.myshopify.com" },
       })),
       database: {
-        shopInstallation: {
+        shop: {
           findUnique: vi.fn(async () => ({
             id: "install_1",
             shop: "demo.myshopify.com",
@@ -88,7 +88,7 @@ describe("phase 1 route helpers", () => {
         throw new Response(null, { status: 401 });
       }),
       database: {
-        shopInstallation: {
+        shop: {
           findUnique: vi.fn(),
           upsert: vi.fn(),
         },
@@ -105,7 +105,7 @@ describe("phase 1 route helpers", () => {
 
   it("handles app/uninstalled with idempotent cleanup", async () => {
     const database = {
-      shopInstallation: {
+      shop: {
         findUnique: vi.fn(),
         upsert: vi.fn(async () => ({
           id: "install_1",

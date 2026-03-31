@@ -2,5 +2,9 @@
   "name": "@categoryfix/domain",
   "version": "0.1.0",
   "private": true,
-  "description": "Deterministic domain package placeholder for CategoryFix."
+  "type": "module",
+  "description": "Deterministic domain package for CategoryFix.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }

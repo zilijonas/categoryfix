@@ -15,6 +15,9 @@ importers:
       '@categoryfix/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@categoryfix/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@categoryfix/shopify-core':
         specifier: workspace:*
         version: link:../../packages/shopify-core
@@ -51,6 +54,9 @@ importers:
       vite-tsconfig-paths:
         specifier: ^5.1.4
         version: 5.1.4(typescript@5.9.3)(vite@6.4.1(@types/node@22.19.15)(jiti@2.6.1))
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@prisma/client':
         specifier: ^6.19.2
@@ -118,7 +124,11 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/taxonomy-data: {}
+  packages/taxonomy-data:
+    dependencies:
+      '@categoryfix/db':
+        specifier: workspace:*
+        version: link:../db
 
 packages:
 

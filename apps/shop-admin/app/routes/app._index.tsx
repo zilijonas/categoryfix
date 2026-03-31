@@ -230,6 +230,38 @@ export default function AppIndexRoute() {
         </div>
       </s-section>
 
+      <s-section heading="Freshness status">
+        <div style={{ display: "grid", gap: "0.5rem" }}>
+          <p style={{ margin: 0 }}>
+            Auto-rescan pending: {data.freshness.autoRescanPending ? "Yes" : "No"}
+          </p>
+          <p style={{ margin: 0 }}>
+            Recent product webhook deliveries: {data.freshness.recentWebhookDeliveryCount}
+          </p>
+          <p style={{ margin: 0 }}>
+            Latest webhook scan:{" "}
+            {data.freshness.lastWebhookScan
+              ? `${data.freshness.lastWebhookScan.status} at ${formatTimestamp(
+                  data.freshness.lastWebhookScan.completedAt ??
+                    data.freshness.lastWebhookScan.startedAt,
+                )}`
+              : "No webhook-triggered scan yet"}
+          </p>
+          {data.freshness.latestIssue ? (
+            <>
+              <p style={{ margin: 0, color: "#8a1f17" }}>
+                Latest freshness issue: {data.freshness.latestIssue.status}
+              </p>
+              <p style={{ margin: 0, color: "#8a1f17" }}>
+                {data.freshness.latestIssue.lastError ??
+                  "CategoryFix could not finish a freshness job."}
+              </p>
+              <p style={{ margin: 0 }}>Recovery: run a manual scan.</p>
+            </>
+          ) : null}
+        </div>
+      </s-section>
+
       <s-section heading="Scan history">
         {data.scanHistory.length ? (
           <div style={{ overflowX: "auto" }}>
@@ -248,7 +280,12 @@ export default function AppIndexRoute() {
               <tbody>
                 {data.scanHistory.map((scan) => (
                   <tr key={scan.id}>
-                    <td style={{ padding: "0.4rem 0" }}>{scan.id}</td>
+                    <td style={{ padding: "0.4rem 0" }}>
+                      <div style={{ display: "grid", gap: "0.2rem" }}>
+                        <span>{scan.id}</span>
+                        <span>{scan.trigger === "WEBHOOK" ? "Webhook refresh" : "Manual scan"}</span>
+                      </div>
+                    </td>
                     <td style={{ color: renderStatusTone(scan.status) }}>{scan.status}</td>
                     <td>{formatTimestamp(scan.completedAt)}</td>
                     <td align="right">{scan.findingCount}</td>

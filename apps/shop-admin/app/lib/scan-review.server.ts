@@ -4,14 +4,18 @@ import {
   type ScanFindingConfidence,
 } from "@prisma/client";
 import {
+  getShopFreshnessSummary,
   getLatestScanRunForShop,
   listAuditTimelineForShop,
   listRecentApplyJobsForShop,
+  type BackgroundJobSummary,
+  type BackgroundJobsDatabaseClient,
   listRecentRollbackJobsForShop,
   getScanFindingDetailForReview,
   getScanRunById,
   listRecentScanRunsForShop,
   listScanFindingsForReview,
+  type ShopFreshnessSummary,
   updateScanFindingStatuses,
   type ApplyJobSummary,
   type ApplyJobsDatabaseClient,
@@ -47,6 +51,7 @@ export interface ReviewShopLookupClient {
 }
 
 export type ReviewLoaderDatabaseClient = ScanDatabaseClient &
+  BackgroundJobsDatabaseClient &
   ApplyJobsDatabaseClient &
   ReviewShopLookupClient;
 
@@ -80,6 +85,7 @@ export interface ScanDashboardPayload {
     };
   };
   scanHistory: Awaited<ReturnType<typeof listRecentScanRunsForShop>>;
+  freshness: ShopFreshnessSummary;
   shop: string;
   reviewPath: string | null;
   scanEndpoint: string;
@@ -90,7 +96,9 @@ export interface ScanReviewRoutePayload {
   auditTimeline: AuditTimelineEntry[];
   filters: ScanFindingReviewPage["filters"];
   findingsPage: ScanFindingReviewPage;
+  freshness: ShopFreshnessSummary;
   pollEndpoint: string;
+  recentFreshnessJobs: BackgroundJobSummary[];
   rollbackJobs: RollbackJobSummary[];
   scanRun: ScanRunDetail;
   scanHistory: Awaited<ReturnType<typeof listRecentScanRunsForShop>>;
@@ -217,11 +225,21 @@ export async function createScanDashboardResponse(args: {
   const scanHistory = shopRecord
     ? await listRecentScanRunsForShop({ shopId: shopRecord.id, limit: 10 }, database)
     : [];
+  const freshness = shopRecord
+    ? await getShopFreshnessSummary({ shopId: shopRecord.id }, database)
+    : {
+        lastWebhookScan: null,
+        autoRescanPending: false,
+        recentWebhookDeliveryCount: 0,
+        latestIssue: null,
+        recentJobs: [],
+      };
   const reviewPath = latestScan ? `/app/scans/${latestScan.id}` : null;
   const payload: ScanDashboardPayload = {
     installation,
     latestScan: serializeScanPayload(latestScan),
     scanHistory,
+    freshness,
     shop: session.shop,
     reviewPath,
     scanEndpoint: "/api/v1/scans",
@@ -294,6 +312,7 @@ export async function createScanReviewResponse(args: {
     { shopId: shopRecord.id, limit: 5 },
     database,
   );
+  const freshness = await getShopFreshnessSummary({ shopId: shopRecord.id }, database);
   const auditTimeline = await listAuditTimelineForShop(
     { shopId: shopRecord.id, limit: 20 },
     database,
@@ -303,7 +322,9 @@ export async function createScanReviewResponse(args: {
     auditTimeline,
     filters: findingsPage.filters,
     findingsPage,
+    freshness,
     pollEndpoint: `/api/v1/scans/${scanRun.id}`,
+    recentFreshnessJobs: freshness.recentJobs,
     rollbackJobs,
     scanRun,
     scanHistory,

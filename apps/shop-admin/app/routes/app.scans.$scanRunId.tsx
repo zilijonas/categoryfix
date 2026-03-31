@@ -107,6 +107,8 @@ function statusLabel(status: string) {
       return "Rolled back";
     case "PARTIALLY_SUCCEEDED":
       return "Partially succeeded";
+    case "DEAD_LETTER":
+      return "Dead letter";
     default:
       return status;
   }
@@ -364,6 +366,9 @@ export default function ScanReviewRoute() {
             Scan: <strong>{data.scanRun.id}</strong>
           </p>
           <p style={{ margin: 0 }}>
+            Trigger: {data.scanRun.trigger === "WEBHOOK" ? "Webhook refresh" : "Manual scan"}
+          </p>
+          <p style={{ margin: 0 }}>
             Status:{" "}
             <strong style={{ color: renderStatusTone(data.scanRun.status) }}>
               {data.scanRun.status}
@@ -380,6 +385,38 @@ export default function ScanReviewRoute() {
             <p style={{ margin: 0, color: "#6f4e00" }}>
               Review actions are disabled while this scan is still running.
             </p>
+          ) : null}
+        </div>
+      </s-section>
+
+      <s-section heading="Freshness status">
+        <div style={{ display: "grid", gap: "0.5rem" }}>
+          <p style={{ margin: 0 }}>
+            Auto-rescan pending: {data.freshness.autoRescanPending ? "Yes" : "No"}
+          </p>
+          <p style={{ margin: 0 }}>
+            Recent product webhook deliveries: {data.freshness.recentWebhookDeliveryCount}
+          </p>
+          <p style={{ margin: 0 }}>
+            Latest webhook scan:{" "}
+            {data.freshness.lastWebhookScan
+              ? `${data.freshness.lastWebhookScan.status} at ${formatTimestamp(
+                  data.freshness.lastWebhookScan.completedAt ??
+                    data.freshness.lastWebhookScan.startedAt,
+                )}`
+              : "No webhook-triggered scan yet"}
+          </p>
+          {data.freshness.latestIssue ? (
+            <>
+              <p style={{ margin: 0, color: "#8a1f17" }}>
+                Latest freshness issue: {data.freshness.latestIssue.status}
+              </p>
+              <p style={{ margin: 0, color: "#8a1f17" }}>
+                {data.freshness.latestIssue.lastError ??
+                  "CategoryFix could not finish a freshness job."}
+              </p>
+              <p style={{ margin: 0 }}>Recovery: run a manual scan.</p>
+            </>
           ) : null}
         </div>
       </s-section>
@@ -835,6 +872,37 @@ export default function ScanReviewRoute() {
           </div>
         ) : (
           <p style={{ margin: 0 }}>No rollback jobs recorded yet.</p>
+        )}
+      </s-section>
+
+      <s-section heading="Recent freshness jobs">
+        {data.recentFreshnessJobs.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th align="left">Job</th>
+                  <th align="left">Kind</th>
+                  <th align="left">Status</th>
+                  <th align="left">Available</th>
+                  <th align="left">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentFreshnessJobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>{job.id}</td>
+                    <td>{job.kind}</td>
+                    <td style={{ color: renderStatusTone(job.status) }}>{statusLabel(job.status)}</td>
+                    <td>{formatTimestamp(job.availableAt)}</td>
+                    <td>{job.lastError ?? "No error"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>No freshness jobs recorded yet.</p>
         )}
       </s-section>
 

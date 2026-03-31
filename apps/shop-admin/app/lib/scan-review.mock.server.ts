@@ -1,10 +1,14 @@
 import {
   AuditActorType,
+  BackgroundJobKind,
+  BackgroundJobStatus,
   JobStatus,
   ScanFindingConfidence,
   ScanFindingStatus,
   ScanRunStatus,
+  ScanRunTrigger,
   ShopInstallationState,
+  WebhookDeliveryStatus,
 } from "@prisma/client";
 import type { ReviewLoaderDatabaseClient } from "./scan-review.server.js";
 import type { ApplyJobsDatabaseClient, ProductCategoryStateSnapshot, ScanDatabaseClient } from "@categoryfix/db";
@@ -24,7 +28,7 @@ interface MockScanRun {
   id: string;
   shopId: string;
   status: ScanRunStatus;
-  trigger: "MANUAL";
+  trigger: ScanRunTrigger;
   source: string;
   externalOperationId: string | null;
   externalOperationStatus: string | null;
@@ -144,6 +148,40 @@ interface MockAuditEvent {
   scanRunId: string | null;
   payload: Record<string, unknown> | null;
   createdAt: Date;
+}
+
+interface MockWebhookDelivery {
+  id: string;
+  shopId: string;
+  topic: string;
+  webhookId: string;
+  productId: string | null;
+  productGid: string | null;
+  productHandle: string | null;
+  productTitle: string | null;
+  status: WebhookDeliveryStatus;
+  failureSummary: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface MockBackgroundJob {
+  id: string;
+  shopId: string;
+  kind: BackgroundJobKind;
+  status: BackgroundJobStatus;
+  dedupeKey: string | null;
+  payload: Record<string, unknown> | null;
+  attemptCount: number;
+  availableAt: Date;
+  lockedAt: Date | null;
+  leaseExpiresAt: Date | null;
+  workerId: string | null;
+  lastError: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface MockLiveProductState {
@@ -368,6 +406,8 @@ function createMockState() {
     rollbackJobs: [] as MockRollbackJob[],
     rollbackJobItems: [] as MockRollbackJobItem[],
     auditEvents: [] as MockAuditEvent[],
+    webhookDeliveries: [] as MockWebhookDelivery[],
+    backgroundJobs: [] as MockBackgroundJob[],
     sequences: {
       applyJob: 1,
       applyJobItem: 1,
@@ -518,6 +558,12 @@ export function getMockReviewDatabase() {
       async findFirst(args: any) {
         const matches = mockState.scanRuns
           .filter((scanRun) => scanRun.shopId === args.where?.shopId)
+          .filter((scanRun) =>
+            args.where?.trigger ? scanRun.trigger === args.where.trigger : true,
+          )
+          .filter((scanRun) =>
+            args.where?.status?.in ? args.where.status.in.includes(scanRun.status) : true,
+          )
           .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
 
         return (matches[0] ?? null) as any;
@@ -638,6 +684,207 @@ export function getMockReviewDatabase() {
     taxonomyCategoryTerm: {
       async findMany() {
         return [];
+      },
+    },
+    webhookDelivery: {
+      async create(args: any) {
+        const timestamp = now();
+        const record: MockWebhookDelivery = {
+          id: `webhook_delivery_${mockState.webhookDeliveries.length + 1}`,
+          shopId: args.data.shopId,
+          topic: args.data.topic,
+          webhookId: args.data.webhookId,
+          productId: args.data.productId ?? null,
+          productGid: args.data.productGid ?? null,
+          productHandle: args.data.productHandle ?? null,
+          productTitle: args.data.productTitle ?? null,
+          status: args.data.status ?? WebhookDeliveryStatus.RECEIVED,
+          failureSummary: args.data.failureSummary ?? null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        const duplicate = mockState.webhookDeliveries.find(
+          (entry) =>
+            entry.shopId === record.shopId &&
+            entry.topic === record.topic &&
+            entry.webhookId === record.webhookId,
+        );
+
+        if (duplicate) {
+          const error = new Error("duplicate webhook delivery") as Error & {
+            code?: string;
+          };
+          error.code = "P2002";
+          throw error;
+        }
+
+        mockState.webhookDeliveries.push(record);
+        return record as any;
+      },
+      async findMany(args: any) {
+        return mockState.webhookDeliveries
+          .filter((delivery) => delivery.shopId === args.where?.shopId)
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+          .slice(0, args.take ?? mockState.webhookDeliveries.length) as any;
+      },
+      async update(args: any) {
+        const record = mockState.webhookDeliveries.find((delivery) => delivery.id === args.where.id);
+
+        if (!record) {
+          throw new Error("Mock webhook delivery not found.");
+        }
+
+        Object.assign(record, args.data, { updatedAt: now() });
+
+        return record as any;
+      },
+    },
+    backgroundJob: {
+      async create(args: any) {
+        const timestamp = now();
+        const record: MockBackgroundJob = {
+          id: `background_job_${mockState.backgroundJobs.length + 1}`,
+          shopId: args.data.shopId,
+          kind: args.data.kind,
+          status: args.data.status ?? BackgroundJobStatus.PENDING,
+          dedupeKey: args.data.dedupeKey ?? null,
+          payload: args.data.payload ?? null,
+          attemptCount: args.data.attemptCount ?? 0,
+          availableAt: args.data.availableAt ?? timestamp,
+          lockedAt: args.data.lockedAt ?? null,
+          leaseExpiresAt: args.data.leaseExpiresAt ?? null,
+          workerId: args.data.workerId ?? null,
+          lastError: args.data.lastError ?? null,
+          startedAt: args.data.startedAt ?? null,
+          completedAt: args.data.completedAt ?? null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        mockState.backgroundJobs.push(record);
+
+        return {
+          ...record,
+          shop: {
+            shop: mockState.shops[0]?.shop ?? "demo.myshopify.com",
+          },
+        } as any;
+      },
+      async findFirst(args: any) {
+        const records = mockState.backgroundJobs
+          .filter((job) => (args.where?.shopId ? job.shopId === args.where.shopId : true))
+          .filter((job) => (args.where?.kind ? job.kind === args.where.kind : true))
+          .filter((job) => {
+            const kinds = args.where?.kind?.in;
+
+            return kinds ? kinds.includes(job.kind) : true;
+          })
+          .filter((job) => {
+            const statuses = args.where?.status?.in;
+
+            if (statuses) {
+              return statuses.includes(job.status);
+            }
+
+            if (typeof args.where?.status === "string") {
+              return job.status === args.where.status;
+            }
+
+            return true;
+          })
+          .filter((job) =>
+            args.where?.dedupeKey ? job.dedupeKey === args.where.dedupeKey : true,
+          )
+          .filter((job) => {
+            const ors = args.where?.OR;
+
+            if (!Array.isArray(ors) || !ors.length) {
+              return true;
+            }
+
+            return ors.some((clause: any) => {
+              if (clause.status?.in) {
+                return clause.status.in.includes(job.status);
+              }
+
+              if (clause.status && typeof clause.status === "string") {
+                if (job.status !== clause.status) {
+                  return false;
+                }
+
+                if (clause.leaseExpiresAt?.lte) {
+                  return (job.leaseExpiresAt ?? new Date(0)) <= clause.leaseExpiresAt.lte;
+                }
+
+                return true;
+              }
+
+              return false;
+            });
+          })
+          .filter((job) =>
+            args.where?.availableAt?.lte ? job.availableAt <= args.where.availableAt.lte : true,
+          )
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+
+        const record = records[0];
+
+        return record
+          ? ({
+              ...record,
+              shop: {
+                shop: mockState.shops[0]?.shop ?? "demo.myshopify.com",
+              },
+            } as any)
+          : null;
+      },
+      async findMany(args: any) {
+        return mockState.backgroundJobs
+          .filter((job) => (args.where?.shopId ? job.shopId === args.where.shopId : true))
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+          .slice(0, args.take ?? mockState.backgroundJobs.length)
+          .map((job) => ({
+            ...job,
+            shop: {
+              shop: mockState.shops[0]?.shop ?? "demo.myshopify.com",
+            },
+          })) as any;
+      },
+      async findUnique(args: any) {
+        const record = mockState.backgroundJobs.find((job) => job.id === args.where.id) ?? null;
+
+        return record
+          ? ({
+              ...record,
+              shop: {
+                shop: mockState.shops[0]?.shop ?? "demo.myshopify.com",
+              },
+            } as any)
+          : null;
+      },
+      async update(args: any) {
+        const record = mockState.backgroundJobs.find((job) => job.id === args.where.id);
+
+        if (!record) {
+          throw new Error("Mock background job not found.");
+        }
+
+        Object.assign(record, args.data, { updatedAt: now() });
+
+        return {
+          ...record,
+          shop: {
+            shop: mockState.shops[0]?.shop ?? "demo.myshopify.com",
+          },
+        } as any;
+      },
+      async updateMany(args: any) {
+        const records = mockState.backgroundJobs.filter((job) => job.id === args.where.id);
+
+        for (const record of records) {
+          Object.assign(record, args.data, { updatedAt: now() });
+        }
+
+        return { count: records.length };
       },
     },
     applyJob: {

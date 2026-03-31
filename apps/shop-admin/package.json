@@ -11,7 +11,8 @@
     "start": "react-router-serve ./build/server/index.js",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "worker": "node --experimental-strip-types ./worker.ts"
   },
   "dependencies": {
     "@categoryfix/domain": "workspace:*",

@@ -4,9 +4,12 @@ test("merchants can review, apply, and roll back persisted findings", async ({ p
   await page.goto("/app");
 
   await expect(page.getByText("Merchant review workspace")).toBeVisible();
+  await expect(page.getByText("Freshness status")).toBeVisible();
+  await expect(page.getByText("Recent product webhook deliveries: 0")).toBeVisible();
   await page.getByRole("link", { name: "Open latest review" }).click();
 
   await expect(page.getByText("Future apply preview")).toBeVisible();
+  await expect(page.getByText("Auto-rescan pending: No")).toBeVisible();
   await expect(page.getByText("Apply changes")).toBeVisible();
 
   await page.getByLabel("Confidence").selectOption("REVIEW_REQUIRED");

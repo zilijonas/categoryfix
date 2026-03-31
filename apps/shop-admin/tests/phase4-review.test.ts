@@ -352,6 +352,12 @@ function createReviewDatabase() {
       async findFirst(args: any) {
         const matches = scanRuns
           .filter((scanRun) => scanRun.shopId === args.where?.shopId)
+          .filter((scanRun) =>
+            args.where?.trigger ? scanRun.trigger === args.where.trigger : true,
+          )
+          .filter((scanRun) =>
+            args.where?.status?.in ? args.where.status.in.includes(scanRun.status) : true,
+          )
           .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
 
         return (matches[0] ?? null) as any;
@@ -483,6 +489,37 @@ function createReviewDatabase() {
     taxonomyCategoryTerm: {
       async findMany() {
         return [];
+      },
+    },
+    webhookDelivery: {
+      async create() {
+        throw new Error("not implemented in review tests");
+      },
+      async findMany() {
+        return [];
+      },
+      async update() {
+        throw new Error("not implemented in review tests");
+      },
+    },
+    backgroundJob: {
+      async create() {
+        throw new Error("not implemented in review tests");
+      },
+      async findFirst() {
+        return null;
+      },
+      async findMany() {
+        return [];
+      },
+      async findUnique() {
+        return null;
+      },
+      async update() {
+        throw new Error("not implemented in review tests");
+      },
+      async updateMany() {
+        return { count: 0 };
       },
     },
     applyJob: {
@@ -638,6 +675,7 @@ describe("phase 4 review flows", () => {
     expect(dashboardPayload.shop).toBe("demo.myshopify.com");
     expect(dashboardPayload.scanHistory).toHaveLength(2);
     expect(dashboardPayload.latestScan.scanRun.id).toBe("scan_running");
+    expect(dashboardPayload.freshness.autoRescanPending).toBe(false);
 
     const reviewResponse = await createScanReviewResponse({
       request: new Request(
@@ -652,6 +690,7 @@ describe("phase 4 review flows", () => {
     expect(reviewPayload.readOnly).toBe(false);
     expect(reviewPayload.selectedFinding?.id).toBe("finding_2");
     expect(reviewPayload.findingsPage.filters.status).toBe("OPEN");
+    expect(reviewPayload.freshness.recentWebhookDeliveryCount).toBe(0);
   });
 
   it("rejects review mutations while a scan is still running", async () => {

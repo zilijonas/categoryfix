@@ -80,6 +80,24 @@ enum TaxonomyCategoryTermKind {
   PATH
 }
 
+enum WebhookDeliveryStatus {
+  RECEIVED
+  FAILED
+}
+
+enum BackgroundJobKind {
+  AUTO_SCAN_START
+  AUTO_SCAN_SYNC
+}
+
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+}
+
 model Session {
   id                  String    @id
   shop                String
@@ -120,6 +138,8 @@ model Shop {
   auditEvents          AuditEvent[]
   shopSubscriptions    ShopSubscription[]
   billingEvents        BillingEvent[]
+  webhookDeliveries    WebhookDelivery[]
+  backgroundJobs       BackgroundJob[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 }
@@ -358,6 +378,51 @@ model BillingEvent {
   createdAt         DateTime         @default(now())
 
   @@index([shopId, eventType])
+}
+
+model WebhookDelivery {
+  id            String                @id @default(cuid())
+  shopId        String
+  shop          Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  topic         String
+  webhookId     String
+  productId     String?
+  productGid    String?
+  productHandle String?
+  productTitle  String?
+  status        WebhookDeliveryStatus @default(RECEIVED)
+  failureSummary String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([shopId, topic, webhookId])
+  @@index([shopId, createdAt])
+  @@index([topic, createdAt])
+}
+
+model BackgroundJob {
+  id             String              @id @default(cuid())
+  shopId         String
+  shop           Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  kind           BackgroundJobKind
+  status         BackgroundJobStatus @default(PENDING)
+  dedupeKey      String?
+  payload        Json?
+  attemptCount   Int                 @default(0)
+  availableAt    DateTime            @default(now())
+  lockedAt       DateTime?
+  leaseExpiresAt DateTime?
+  workerId       String?
+  lastError      String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([shopId, createdAt])
+  @@index([kind, status, availableAt])
+  @@index([status, availableAt])
+  @@index([dedupeKey, createdAt])
 }
 
 model TaxonomyVersion {

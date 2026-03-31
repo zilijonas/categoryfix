@@ -23,3 +23,10 @@ Document how to deploy the embedded app, worker process, and marketing site safe
 - Run a scan and confirm `/app/scans/:scanRunId` loads accepted findings and apply counts correctly.
 - Trigger a small apply job on a dev store and verify the latest apply job summary shows item-level results.
 - Trigger rollback for that job and verify the audit timeline and rollback summary update without leaving stale counts behind.
+
+## Phase 6 verification additions
+
+- Confirm Fly starts both the `app` and `worker` processes from `apps/shop-admin/fly.toml`.
+- Deliver a product webhook on a dev store and verify a `WebhookDelivery` row is recorded plus one pending `AUTO_SCAN_START` job for the shop.
+- Verify the worker claims the freshness job, creates a `ScanRun` with `trigger = WEBHOOK`, and eventually marks the paired `AUTO_SCAN_SYNC` job `SUCCEEDED`.
+- Trigger repeated sync failures and confirm retries back off, then land in `DEAD_LETTER` after the configured attempt budget.

@@ -29,7 +29,7 @@ import {
 import { z } from "zod";
 import { resolveOfflineAdminContext, type OfflineAdminDatabaseClient } from "./offline-admin.server.js";
 
-const SCAN_SOURCE = "phase3-deterministic-scan";
+export const SCAN_SOURCE = "phase3-deterministic-scan";
 
 const BULK_PRODUCTS_QUERY = `{
   products {
@@ -151,6 +151,12 @@ interface NormalizedBulkProduct {
   } | null;
 }
 
+export interface SyncRunningScanResult {
+  outcome: "RUNNING" | "SUCCEEDED" | "FAILED" | "RETRYABLE_ERROR";
+  scanRun: ScanRunDetail;
+  errorMessage: string | null;
+}
+
 function emptyConfidenceCounts(): ScanConfidenceCounts {
   return {
     exact: 0,
@@ -222,7 +228,7 @@ async function readJsonBody(request: Request) {
   }
 }
 
-async function startBulkProductScan(admin: ShopifyAdminApi) {
+export async function startBulkProductScan(admin: ShopifyAdminApi) {
   const response = await admin.graphql(
     `#graphql
       mutation RunDeterministicScan($query: String!) {
@@ -512,28 +518,89 @@ async function ingestBulkResults(args: {
   return createdCount;
 }
 
-async function syncRunningScan(args: {
+export async function startDeterministicScanRun(args: {
+  shop: string;
+  trigger: ScanRunTrigger;
+  database: Phase3DatabaseClient;
+  getOfflineAdminContext?: typeof resolveOfflineAdminContext;
+}): Promise<ScanRunDetail> {
+  const resolveContext = args.getOfflineAdminContext ?? resolveOfflineAdminContext;
+  const offlineAdmin = await resolveContext({
+    shop: args.shop,
+    database: args.database,
+  });
+  const taxonomyVersion = await getLatestTaxonomyVersion("en", args.database);
+
+  if (!taxonomyVersion) {
+    throw new Error("No taxonomy snapshot is available for scanning.");
+  }
+
+  await syncRuleDefinitions(
+    {
+      definitions: PHASE3_RULE_DEFINITIONS.map((definition) => ({
+        key: definition.key,
+        version: definition.version,
+        description: definition.description,
+        priority: definition.priority,
+        configuration: definition.configuration,
+      })),
+    },
+    args.database,
+  );
+
+  const scanRun = await createScanRun(
+    {
+      shopId: offlineAdmin.shopRecord.id,
+      trigger: args.trigger,
+      source: SCAN_SOURCE,
+      taxonomyVersionId: taxonomyVersion.id,
+    },
+    args.database,
+  );
+  const operation = await startBulkProductScan(offlineAdmin.admin);
+
+  return markScanRunRunning(
+    {
+      scanRunId: scanRun.id,
+      externalOperationId: operation.id,
+      externalOperationStatus: operation.status,
+    },
+    args.database,
+  );
+}
+
+export async function syncRunningScan(args: {
   scanRun: ScanRunDetail;
   shop: string;
   database: Phase3DatabaseClient;
   getOfflineAdminContext?: typeof resolveOfflineAdminContext;
   fetchImpl?: typeof fetch;
-}) {
+}): Promise<SyncRunningScanResult> {
   if (
     args.scanRun.status !== ScanRunStatus.PENDING &&
     args.scanRun.status !== ScanRunStatus.RUNNING
   ) {
-    return args.scanRun;
+    return {
+      outcome: args.scanRun.status === ScanRunStatus.SUCCEEDED ? "SUCCEEDED" : "FAILED",
+      scanRun: args.scanRun,
+      errorMessage: args.scanRun.failureSummary ?? null,
+    };
   }
 
   if (!args.scanRun.externalOperationId) {
-    return markScanRunFailed(
+    const scanRun = await markScanRunFailed(
       {
         scanRunId: args.scanRun.id,
         failureSummary: "The scan could not find its Shopify bulk operation.",
       },
       args.database,
     );
+
+    return {
+      outcome: "FAILED",
+      scanRun,
+      errorMessage: scanRun.failureSummary ?? null,
+    };
   }
 
   const resolveContext = args.getOfflineAdminContext ?? resolveOfflineAdminContext;
@@ -550,13 +617,29 @@ async function syncRunningScan(args: {
     );
 
     if (!operation) {
-      throw new Error("Shopify could not find the requested bulk operation.");
+      const scanRun = await markScanRunFailed(
+        {
+          scanRunId: args.scanRun.id,
+          failureSummary: "Shopify could not find the requested bulk operation.",
+        },
+        args.database,
+      );
+
+      return {
+        outcome: "FAILED",
+        scanRun,
+        errorMessage: scanRun.failureSummary ?? null,
+      };
     }
 
     if (operation.status === "CREATED" || operation.status === "RUNNING") {
       return {
-        ...args.scanRun,
-        externalOperationStatus: operation.status,
+        outcome: "RUNNING",
+        scanRun: {
+          ...args.scanRun,
+          externalOperationStatus: operation.status,
+        },
+        errorMessage: null,
       };
     }
 
@@ -564,7 +647,19 @@ async function syncRunningScan(args: {
       const downloadUrl = operation.url ?? operation.partialDataUrl;
 
       if (!downloadUrl) {
-        throw new Error("The scan finished but Shopify did not provide a result file.");
+        const scanRun = await markScanRunFailed(
+          {
+            scanRunId: args.scanRun.id,
+            failureSummary: "The scan finished but Shopify did not provide a result file.",
+          },
+          args.database,
+        );
+
+        return {
+          outcome: "FAILED",
+          scanRun,
+          errorMessage: scanRun.failureSummary ?? null,
+        };
       }
 
       const taxonomySnapshot = args.scanRun.taxonomyVersionId
@@ -572,33 +667,59 @@ async function syncRunningScan(args: {
         : null;
 
       if (!taxonomySnapshot) {
-        throw new Error("The scan could not load its taxonomy snapshot.");
+        const scanRun = await markScanRunFailed(
+          {
+            scanRunId: args.scanRun.id,
+            failureSummary: "The scan could not load its taxonomy snapshot.",
+          },
+          args.database,
+        );
+
+        return {
+          outcome: "FAILED",
+          scanRun,
+          errorMessage: scanRun.failureSummary ?? null,
+        };
       }
 
-      const products = await loadBulkProducts(downloadUrl, fetchImpl);
+      try {
+        const products = await loadBulkProducts(downloadUrl, fetchImpl);
 
-      await ingestBulkResults({
-        scanRun: args.scanRun,
-        taxonomy: {
-          categories: taxonomySnapshot.categories,
-          terms: taxonomySnapshot.terms,
-        },
-        products,
-        database: args.database,
-      });
+        await ingestBulkResults({
+          scanRun: args.scanRun,
+          taxonomy: {
+            categories: taxonomySnapshot.categories,
+            terms: taxonomySnapshot.terms,
+          },
+          products,
+          database: args.database,
+        });
 
-      return markScanRunSucceeded(
-        {
-          scanRunId: args.scanRun.id,
-          scannedProductCount: products.length,
-          findingCount: products.length,
-          externalOperationStatus: operation.status,
-        },
-        args.database,
-      );
+        const scanRun = await markScanRunSucceeded(
+          {
+            scanRunId: args.scanRun.id,
+            scannedProductCount: products.length,
+            findingCount: products.length,
+            externalOperationStatus: operation.status,
+          },
+          args.database,
+        );
+
+        return {
+          outcome: "SUCCEEDED",
+          scanRun,
+          errorMessage: null,
+        };
+      } catch (error) {
+        return {
+          outcome: "RETRYABLE_ERROR",
+          scanRun: args.scanRun,
+          errorMessage: toMerchantSafeFailure(error),
+        };
+      }
     }
 
-    return markScanRunFailed(
+    const scanRun = await markScanRunFailed(
       {
         scanRunId: args.scanRun.id,
         failureSummary:
@@ -609,14 +730,18 @@ async function syncRunningScan(args: {
       },
       args.database,
     );
+
+    return {
+      outcome: "FAILED",
+      scanRun,
+      errorMessage: scanRun.failureSummary ?? null,
+    };
   } catch (error) {
-    return markScanRunFailed(
-      {
-        scanRunId: args.scanRun.id,
-        failureSummary: toMerchantSafeFailure(error),
-      },
-      args.database,
-    );
+    return {
+      outcome: "RETRYABLE_ERROR",
+      scanRun: args.scanRun,
+      errorMessage: toMerchantSafeFailure(error),
+    };
   }
 }
 
@@ -662,50 +787,23 @@ export async function createStartScanResponse(args: {
     return Response.json(serializeScanPayload(activeScanRun), { status: 409 });
   }
 
-  const taxonomyVersion = await getLatestTaxonomyVersion("en", args.database);
-
-  if (!taxonomyVersion) {
-    return Response.json(
-      {
-        error: "No taxonomy snapshot is available for scanning.",
-      },
-      { status: 503 },
-    );
-  }
-
-  await syncRuleDefinitions(
-    {
-      definitions: PHASE3_RULE_DEFINITIONS.map((definition) => ({
-        key: definition.key,
-        version: definition.version,
-        description: definition.description,
-        priority: definition.priority,
-        configuration: definition.configuration,
-      })),
-    },
-    args.database,
-  );
-
-  const scanRun = await createScanRun(
-    {
-      shopId: offlineAdmin.shopRecord.id,
+  try {
+    const runningScanRun = await startDeterministicScanRun({
+      shop: session.shop,
       trigger: parsed.trigger as ScanRunTrigger,
-      source: SCAN_SOURCE,
-      taxonomyVersionId: taxonomyVersion.id,
-    },
-    args.database,
-  );
-  const operation = await startBulkProductScan(offlineAdmin.admin);
-  const runningScanRun = await markScanRunRunning(
-    {
-      scanRunId: scanRun.id,
-      externalOperationId: operation.id,
-      externalOperationStatus: operation.status,
-    },
-    args.database,
-  );
+      database: args.database,
+      ...(args.getOfflineAdminContext
+        ? { getOfflineAdminContext: args.getOfflineAdminContext }
+        : {}),
+    });
 
-  return Response.json(serializeScanPayload(runningScanRun), { status: 202 });
+    return Response.json(serializeScanPayload(runningScanRun), { status: 202 });
+  } catch (error) {
+    const message = toMerchantSafeFailure(error);
+    const status = message.includes("No taxonomy snapshot") ? 503 : 500;
+
+    return Response.json({ error: message }, { status });
+  }
 }
 
 export async function createScanRunResponse(args: {
@@ -744,5 +842,17 @@ export async function createScanRunResponse(args: {
     ...(args.fetchImpl ? { fetchImpl: args.fetchImpl } : {}),
   });
 
-  return Response.json(serializeScanPayload(syncedRun));
+  if (syncedRun.outcome === "RETRYABLE_ERROR") {
+    const failedRun = await markScanRunFailed(
+      {
+        scanRunId: scanRun.id,
+        failureSummary: syncedRun.errorMessage ?? "The scan could not complete. Please try again.",
+      },
+      args.database,
+    );
+
+    return Response.json(serializeScanPayload(failedRun));
+  }
+
+  return Response.json(serializeScanPayload(syncedRun.scanRun));
 }

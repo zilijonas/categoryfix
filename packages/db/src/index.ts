@@ -9,6 +9,7 @@ import { prisma } from "./client.js";
 
 export * from "./scans.js";
 export * from "./jobs.js";
+export * from "./background-jobs.js";
 
 type TaxonomyCategoryWithVersion = Prisma.TaxonomyCategoryGetPayload<{
   include: { taxonomyVersion: true };

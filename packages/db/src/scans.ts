@@ -158,8 +158,12 @@ export interface ScanReviewPreviewCounts {
   open: number;
   accepted: number;
   dismissed: number;
+  applied: number;
+  rolledBack: number;
   safeDeterministicOpen: number;
   reviewRequiredOpen: number;
+  safeDeterministicAccepted: number;
+  reviewRequiredAccepted: number;
   noSafeSuggestion: number;
   readyToApply: number;
 }
@@ -527,8 +531,12 @@ async function loadPreviewCounts(
     open: 0,
     accepted: 0,
     dismissed: 0,
+    applied: 0,
+    rolledBack: 0,
     safeDeterministicOpen: 0,
     reviewRequiredOpen: 0,
+    safeDeterministicAccepted: 0,
+    reviewRequiredAccepted: 0,
     noSafeSuggestion: 0,
     readyToApply: 0,
   };
@@ -543,6 +551,12 @@ async function loadPreviewCounts(
         break;
       case ScanFindingStatus.DISMISSED:
         counts.dismissed += 1;
+        break;
+      case ScanFindingStatus.APPLIED:
+        counts.applied += 1;
+        break;
+      case ScanFindingStatus.ROLLED_BACK:
+        counts.rolledBack += 1;
         break;
       default:
         break;
@@ -571,6 +585,17 @@ async function loadPreviewCounts(
       finding.confidence !== ScanFindingConfidence.NO_SAFE_SUGGESTION
     ) {
       counts.readyToApply += 1;
+
+      if (
+        finding.confidence === ScanFindingConfidence.EXACT ||
+        finding.confidence === ScanFindingConfidence.STRONG
+      ) {
+        counts.safeDeterministicAccepted += 1;
+      }
+
+      if (finding.confidence === ScanFindingConfidence.REVIEW_REQUIRED) {
+        counts.reviewRequiredAccepted += 1;
+      }
     }
   }
 

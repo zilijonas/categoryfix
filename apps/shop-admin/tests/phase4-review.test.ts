@@ -60,7 +60,9 @@ interface MockFinding {
   evidence: Record<string, unknown>;
   explanation: Record<string, unknown>;
   currentCategoryId: string | null;
+  currentCategoryGid: string | null;
   recommendedCategoryId: string | null;
+  recommendedCategoryGid: string | null;
   confidence: ScanFindingConfidence;
   status: ScanFindingStatus;
   source: string;
@@ -176,7 +178,9 @@ function createReviewDatabase() {
       evidence: createEvidence("Wool Beanie"),
       explanation: createExplanation("EXACT", 2),
       currentCategoryId: null,
+      currentCategoryGid: null,
       recommendedCategoryId: "aa-2-17",
+      recommendedCategoryGid: "gid://shopify/TaxonomyCategory/aa-2-17",
       confidence: ScanFindingConfidence.EXACT,
       status: ScanFindingStatus.OPEN,
       source: "phase3-deterministic-scan",
@@ -193,7 +197,9 @@ function createReviewDatabase() {
       evidence: createEvidence("Paperback Novel"),
       explanation: createExplanation("REVIEW_REQUIRED", 1),
       currentCategoryId: null,
+      currentCategoryGid: null,
       recommendedCategoryId: "me-1-3",
+      recommendedCategoryGid: "gid://shopify/TaxonomyCategory/me-1-3",
       confidence: ScanFindingConfidence.REVIEW_REQUIRED,
       status: ScanFindingStatus.OPEN,
       source: "phase3-deterministic-scan",
@@ -212,7 +218,9 @@ function createReviewDatabase() {
         "CategoryFix could not make a safe recommendation.",
       ]),
       currentCategoryId: null,
+      currentCategoryGid: null,
       recommendedCategoryId: null,
+      recommendedCategoryGid: null,
       confidence: ScanFindingConfidence.NO_SAFE_SUGGESTION,
       status: ScanFindingStatus.OPEN,
       source: "phase3-deterministic-scan",
@@ -229,7 +237,9 @@ function createReviewDatabase() {
       evidence: createEvidence("Sun Hat"),
       explanation: createExplanation("STRONG", 1),
       currentCategoryId: null,
+      currentCategoryGid: null,
       recommendedCategoryId: "aa-2-17",
+      recommendedCategoryGid: "gid://shopify/TaxonomyCategory/aa-2-17",
       confidence: ScanFindingConfidence.STRONG,
       status: ScanFindingStatus.DISMISSED,
       source: "phase3-deterministic-scan",
@@ -246,7 +256,9 @@ function createReviewDatabase() {
       evidence: createEvidence("Cozy Cap"),
       explanation: createExplanation("STRONG", 1),
       currentCategoryId: null,
+      currentCategoryGid: null,
       recommendedCategoryId: "aa-2-17",
+      recommendedCategoryGid: "gid://shopify/TaxonomyCategory/aa-2-17",
       confidence: ScanFindingConfidence.STRONG,
       status: ScanFindingStatus.ACCEPTED,
       source: "phase3-deterministic-scan",
@@ -425,6 +437,17 @@ function createReviewDatabase() {
 
         return record as any;
       },
+      async update(args: any) {
+        const finding = findings.find((entry) => entry.id === args.where.id);
+
+        if (!finding) {
+          throw new Error("finding not found");
+        }
+
+        Object.assign(finding, args.data);
+
+        return finding as any;
+      },
       async updateMany(args: any) {
         const matches = findings.filter((finding) => matchesWhere(finding, args.where ?? {}));
 
@@ -458,6 +481,64 @@ function createReviewDatabase() {
       },
     },
     taxonomyCategoryTerm: {
+      async findMany() {
+        return [];
+      },
+    },
+    applyJob: {
+      async create() {
+        throw new Error("not implemented in review tests");
+      },
+      async findMany() {
+        return [];
+      },
+      async findUnique() {
+        return null;
+      },
+      async update() {
+        throw new Error("not implemented in review tests");
+      },
+    },
+    applyJobItem: {
+      async createMany() {
+        throw new Error("not implemented in review tests");
+      },
+      async findMany() {
+        return [];
+      },
+      async update() {
+        throw new Error("not implemented in review tests");
+      },
+    },
+    rollbackJob: {
+      async create() {
+        throw new Error("not implemented in review tests");
+      },
+      async findMany() {
+        return [];
+      },
+      async findUnique() {
+        return null;
+      },
+      async update() {
+        throw new Error("not implemented in review tests");
+      },
+    },
+    rollbackJobItem: {
+      async createMany() {
+        throw new Error("not implemented in review tests");
+      },
+      async findMany() {
+        return [];
+      },
+      async update() {
+        throw new Error("not implemented in review tests");
+      },
+    },
+    auditEvent: {
+      async create() {
+        throw new Error("not implemented in review tests");
+      },
       async findMany() {
         return [];
       },

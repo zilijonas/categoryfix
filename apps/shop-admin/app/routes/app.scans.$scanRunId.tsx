@@ -1,13 +1,7 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
-import {
-  Form,
-  Link,
-  useFetcher,
-  useLoaderData,
-  useNavigation,
-  useRevalidator,
-} from "react-router";
+import { Form, Link, useFetcher, useLoaderData, useNavigation, useRevalidator } from "react-router";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import type { ApplyJobDetail, RollbackJobDetail } from "@categoryfix/db";
 import {
   createReviewMutationResponse,
   createScanReviewResponse,
@@ -21,6 +15,20 @@ interface ScanStatusPayload {
     id: string;
     status: string;
   } | null;
+}
+
+interface ApplyJobResponsePayload {
+  job: ApplyJobDetail;
+  requestId: string;
+}
+
+interface RollbackJobResponsePayload {
+  job: RollbackJobDetail;
+  requestId: string;
+}
+
+interface ApplyJobStatusPayload {
+  job: ApplyJobDetail;
 }
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -93,6 +101,12 @@ function statusLabel(status: string) {
       return "Dismissed";
     case "OPEN":
       return "Open";
+    case "APPLIED":
+      return "Applied";
+    case "ROLLED_BACK":
+      return "Rolled back";
+    case "PARTIALLY_SUCCEEDED":
+      return "Partially succeeded";
     default:
       return status;
   }
@@ -102,10 +116,13 @@ function renderStatusTone(status: string) {
   switch (status) {
     case "SUCCEEDED":
     case "ACCEPTED":
+    case "APPLIED":
       return "#1f7a1f";
     case "FAILED":
     case "DISMISSED":
       return "#8a1f17";
+    case "PARTIALLY_SUCCEEDED":
+      return "#7a4f00";
     case "RUNNING":
     case "PENDING":
       return "#6f4e00";
@@ -119,6 +136,12 @@ function canAcceptFinding(finding: {
   recommendedCategory: { name: string } | null;
 }) {
   return finding.recommendedCategory && finding.confidence !== "NO_SAFE_SUGGESTION";
+}
+
+function formatAuditEvent(eventType: string) {
+  return eventType
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (value) => value.toUpperCase());
 }
 
 function buildSearch(
@@ -159,11 +182,112 @@ export default function ScanReviewRoute() {
   const revalidator = useRevalidator();
   const reviewAction = useFetcher<{ updatedCount: number }>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [applyJob, setApplyJob] = useState<ApplyJobDetail | null>(null);
+  const [rollbackJob, setRollbackJob] = useState<RollbackJobDetail | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
+  const [pendingOperation, setPendingOperation] = useState<string | null>(null);
 
   const visibleIds = useMemo(
     () => new Set(data.findingsPage.items.map((finding) => finding.id)),
     [data.findingsPage.items],
   );
+  const acceptedSelectedIds = useMemo(
+    () =>
+      data.findingsPage.items
+        .filter(
+          (finding) =>
+            selectedIds.includes(finding.id) &&
+            finding.status === "ACCEPTED" &&
+            Boolean(finding.recommendedCategory),
+        )
+        .map((finding) => finding.id),
+    [data.findingsPage.items, selectedIds],
+  );
+
+  async function loadApplyJob(applyJobId: string) {
+    const response = await fetch(`/api/v1/apply-jobs/${applyJobId}`);
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = (await response.json()) as ApplyJobStatusPayload;
+    setApplyJob(payload.job);
+  }
+
+  async function runApplyJob(findingIds?: string[]) {
+    setPendingOperation(findingIds?.length ? "apply-selected" : "apply-default");
+    setOperationError(null);
+
+    try {
+      const response = await fetch("/api/v1/apply-jobs", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          scanRunId: data.scanRun.id,
+          ...(findingIds?.length ? { findingIds } : {}),
+        }),
+      });
+      const payload = (await response.json()) as ApplyJobResponsePayload | { error?: string };
+
+      if (!response.ok) {
+        setOperationError(
+          "error" in payload && payload.error
+            ? payload.error
+            : "CategoryFix could not start the apply job.",
+        );
+        return;
+      }
+
+      setApplyJob((payload as ApplyJobResponsePayload).job);
+      setRollbackJob(null);
+      setSelectedIds([]);
+      startTransition(() => {
+        revalidator.revalidate();
+      });
+    } catch {
+      setOperationError("CategoryFix could not start the apply job.");
+    } finally {
+      setPendingOperation(null);
+    }
+  }
+
+  async function runRollbackJob(applyJobId: string) {
+    setPendingOperation(`rollback:${applyJobId}`);
+    setOperationError(null);
+
+    try {
+      const response = await fetch("/api/v1/rollback-jobs", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ applyJobId }),
+      });
+      const payload = (await response.json()) as RollbackJobResponsePayload | { error?: string };
+
+      if (!response.ok) {
+        setOperationError(
+          "error" in payload && payload.error
+            ? payload.error
+            : "CategoryFix could not start the rollback job.",
+        );
+        return;
+      }
+
+      setRollbackJob((payload as RollbackJobResponsePayload).job);
+      await loadApplyJob(applyJobId);
+      startTransition(() => {
+        revalidator.revalidate();
+      });
+    } catch {
+      setOperationError("CategoryFix could not start the rollback job.");
+    } finally {
+      setPendingOperation(null);
+    }
+  }
 
   useEffect(() => {
     setSelectedIds((current) => current.filter((id) => visibleIds.has(id)));
@@ -217,10 +341,20 @@ export default function ScanReviewRoute() {
     };
   }, [data.pollEndpoint, data.readOnly, revalidator]);
 
+  useEffect(() => {
+    if (applyJob || !data.applyJobs[0]?.id) {
+      return;
+    }
+
+    void loadApplyJob(data.applyJobs[0].id);
+  }, [applyJob, data.applyJobs]);
+
   const allSelected =
     data.findingsPage.items.length > 0 &&
     data.findingsPage.items.every((finding) => selectedIds.includes(finding.id));
   const drawerCloseSearch = buildSearch(data.filters, data.findingsPage.page);
+  const latestApplyJob = applyJob;
+  const latestRollbackJob = rollbackJob;
 
   return (
     <s-page heading="Scan review">
@@ -235,12 +369,8 @@ export default function ScanReviewRoute() {
               {data.scanRun.status}
             </strong>
           </p>
-          <p style={{ margin: 0 }}>
-            Started: {formatTimestamp(data.scanRun.startedAt)}
-          </p>
-          <p style={{ margin: 0 }}>
-            Completed: {formatTimestamp(data.scanRun.completedAt)}
-          </p>
+          <p style={{ margin: 0 }}>Started: {formatTimestamp(data.scanRun.startedAt)}</p>
+          <p style={{ margin: 0 }}>Completed: {formatTimestamp(data.scanRun.completedAt)}</p>
           {data.scanRun.failureSummary ? (
             <p style={{ margin: 0, color: "#8a1f17" }}>
               Failure: {data.scanRun.failureSummary}
@@ -259,9 +389,7 @@ export default function ScanReviewRoute() {
           <p style={{ margin: 0 }}>
             Accepted for future apply: {data.findingsPage.previewCounts.readyToApply}
           </p>
-          <p style={{ margin: 0 }}>
-            Open findings: {data.findingsPage.previewCounts.open}
-          </p>
+          <p style={{ margin: 0 }}>Open findings: {data.findingsPage.previewCounts.open}</p>
           <p style={{ margin: 0 }}>
             Safe deterministic still open: {data.findingsPage.previewCounts.safeDeterministicOpen}
           </p>
@@ -269,11 +397,66 @@ export default function ScanReviewRoute() {
             Review required still open: {data.findingsPage.previewCounts.reviewRequiredOpen}
           </p>
           <p style={{ margin: 0 }}>
-            No safe suggestion: {data.findingsPage.previewCounts.noSafeSuggestion}
+            Already applied: {data.findingsPage.previewCounts.applied}
           </p>
           <p style={{ margin: 0 }}>
-            Dismissed: {data.findingsPage.previewCounts.dismissed}
+            Rolled back: {data.findingsPage.previewCounts.rolledBack}
           </p>
+          <p style={{ margin: 0 }}>
+            No safe suggestion: {data.findingsPage.previewCounts.noSafeSuggestion}
+          </p>
+          <p style={{ margin: 0 }}>Dismissed: {data.findingsPage.previewCounts.dismissed}</p>
+        </div>
+      </s-section>
+
+      <s-section heading="Apply changes">
+        <div style={{ display: "grid", gap: "0.75rem" }}>
+          <p style={{ margin: 0 }}>
+            Default apply includes only accepted exact and strong matches. Accepted
+            review-required findings stay opt-in and must be selected explicitly.
+          </p>
+          <div style={{ display: "grid", gap: "0.35rem" }}>
+            <p style={{ margin: 0 }}>
+              Safe accepted by default: {data.findingsPage.previewCounts.safeDeterministicAccepted}
+            </p>
+            <p style={{ margin: 0 }}>
+              Review required accepted: {data.findingsPage.previewCounts.reviewRequiredAccepted}
+            </p>
+            <p style={{ margin: 0 }}>
+              Accepted selected on this page: {acceptedSelectedIds.length}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button
+              disabled={
+                data.readOnly ||
+                pendingOperation !== null ||
+                data.findingsPage.previewCounts.safeDeterministicAccepted === 0
+              }
+              onClick={() => {
+                void runApplyJob();
+              }}
+              type="button"
+            >
+              {pendingOperation === "apply-default"
+                ? "Applying safe accepted..."
+                : "Apply safe accepted"}
+            </button>
+            <button
+              disabled={data.readOnly || pendingOperation !== null || acceptedSelectedIds.length === 0}
+              onClick={() => {
+                void runApplyJob(acceptedSelectedIds);
+              }}
+              type="button"
+            >
+              {pendingOperation === "apply-selected"
+                ? "Applying selected..."
+                : "Apply selected accepted"}
+            </button>
+          </div>
+          {operationError ? (
+            <p style={{ margin: 0, color: "#8a1f17" }}>{operationError}</p>
+          ) : null}
         </div>
       </s-section>
 
@@ -287,6 +470,8 @@ export default function ScanReviewRoute() {
                 <option value="OPEN">Open</option>
                 <option value="ACCEPTED">Accepted</option>
                 <option value="DISMISSED">Dismissed</option>
+                <option value="APPLIED">Applied</option>
+                <option value="ROLLED_BACK">Rolled back</option>
               </select>
             </label>
             <label style={{ display: "grid", gap: "0.25rem" }}>
@@ -442,21 +627,239 @@ export default function ScanReviewRoute() {
             Page {data.findingsPage.page} of {data.findingsPage.totalPages}
           </span>
           {data.findingsPage.page > 1 ? (
-            <Link
-              to={buildSearch(data.filters, data.findingsPage.page - 1, data.selectedFinding?.id)}
-            >
+            <Link to={buildSearch(data.filters, data.findingsPage.page - 1, data.selectedFinding?.id)}>
               Previous
             </Link>
           ) : null}
           {data.findingsPage.page < data.findingsPage.totalPages ? (
-            <Link
-              to={buildSearch(data.filters, data.findingsPage.page + 1, data.selectedFinding?.id)}
-            >
+            <Link to={buildSearch(data.filters, data.findingsPage.page + 1, data.selectedFinding?.id)}>
               Next
             </Link>
           ) : null}
           {navigation.state !== "idle" ? <span>Loading…</span> : null}
         </div>
+      </s-section>
+
+      <s-section heading="Latest apply job">
+        {latestApplyJob ? (
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            <div style={{ display: "grid", gap: "0.35rem" }}>
+              <p style={{ margin: 0 }}>
+                Apply job: <strong>{latestApplyJob.id}</strong>
+              </p>
+              <p style={{ margin: 0 }}>
+                Status:{" "}
+                <strong style={{ color: renderStatusTone(latestApplyJob.status) }}>
+                  {statusLabel(latestApplyJob.status)}
+                </strong>
+              </p>
+              <p style={{ margin: 0 }}>
+                Applied: {latestApplyJob.appliedCount} of {latestApplyJob.selectedFindingCount}
+              </p>
+              <p style={{ margin: 0 }}>Failed: {latestApplyJob.failedCount}</p>
+              <p style={{ margin: 0 }}>Started: {formatTimestamp(latestApplyJob.startedAt)}</p>
+              <p style={{ margin: 0 }}>Completed: {formatTimestamp(latestApplyJob.completedAt)}</p>
+            </div>
+
+            {latestApplyJob.rollbackEligibleCount > 0 ? (
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                <button
+                  disabled={pendingOperation !== null}
+                  onClick={() => {
+                    void runRollbackJob(latestApplyJob.id);
+                  }}
+                  type="button"
+                >
+                  {pendingOperation === `rollback:${latestApplyJob.id}`
+                    ? "Rolling back..."
+                    : "Rollback applied items"}
+                </button>
+              </div>
+            ) : null}
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th align="left">Product</th>
+                    <th align="left">Before</th>
+                    <th align="left">After</th>
+                    <th align="left">Status</th>
+                    <th align="left">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {latestApplyJob.items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.productTitle ?? item.productId}</td>
+                      <td>{item.before.category?.fullPath ?? "No category set"}</td>
+                      <td>{item.after.category?.fullPath ?? "Clear category"}</td>
+                      <td style={{ color: renderStatusTone(item.status) }}>
+                        {statusLabel(item.status)}
+                      </td>
+                      <td>{item.errorMessage ?? "No error"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>
+            No apply jobs have run yet for this shop.
+          </p>
+        )}
+      </s-section>
+
+      <s-section heading="Latest rollback job">
+        {latestRollbackJob ? (
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            <div style={{ display: "grid", gap: "0.35rem" }}>
+              <p style={{ margin: 0 }}>
+                Rollback job: <strong>{latestRollbackJob.id}</strong>
+              </p>
+              <p style={{ margin: 0 }}>
+                Status:{" "}
+                <strong style={{ color: renderStatusTone(latestRollbackJob.status) }}>
+                  {statusLabel(latestRollbackJob.status)}
+                </strong>
+              </p>
+              <p style={{ margin: 0 }}>
+                Rolled back: {latestRollbackJob.rolledBackCount} of {latestRollbackJob.selectedItemCount}
+              </p>
+              <p style={{ margin: 0 }}>Failed: {latestRollbackJob.failedCount}</p>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th align="left">Product</th>
+                    <th align="left">Current</th>
+                    <th align="left">Restore to</th>
+                    <th align="left">Status</th>
+                    <th align="left">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {latestRollbackJob.items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.productTitle ?? item.productId}</td>
+                      <td>{item.before.category?.fullPath ?? "No category set"}</td>
+                      <td>{item.after.category?.fullPath ?? "Clear category"}</td>
+                      <td style={{ color: renderStatusTone(item.status) }}>
+                        {statusLabel(item.status)}
+                      </td>
+                      <td>{item.errorMessage ?? "No error"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>
+            No rollback job has run in this browser session yet.
+          </p>
+        )}
+      </s-section>
+
+      <s-section heading="Recent apply jobs">
+        {data.applyJobs.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th align="left">Job</th>
+                  <th align="left">Status</th>
+                  <th align="right">Applied</th>
+                  <th align="right">Failed</th>
+                  <th align="left">Completed</th>
+                  <th align="left">Undo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.applyJobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>{job.id}</td>
+                    <td style={{ color: renderStatusTone(job.status) }}>{statusLabel(job.status)}</td>
+                    <td align="right">{job.appliedCount}</td>
+                    <td align="right">{job.failedCount}</td>
+                    <td>{formatTimestamp(job.completedAt)}</td>
+                    <td>
+                      <button
+                        disabled={job.rollbackEligibleCount === 0 || pendingOperation !== null}
+                        onClick={() => {
+                          void runRollbackJob(job.id);
+                        }}
+                        type="button"
+                      >
+                        {pendingOperation === `rollback:${job.id}` ? "Rolling back..." : "Rollback"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>No apply jobs recorded yet.</p>
+        )}
+      </s-section>
+
+      <s-section heading="Recent rollback jobs">
+        {data.rollbackJobs.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th align="left">Job</th>
+                  <th align="left">Status</th>
+                  <th align="right">Rolled back</th>
+                  <th align="right">Failed</th>
+                  <th align="left">Completed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rollbackJobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>{job.id}</td>
+                    <td style={{ color: renderStatusTone(job.status) }}>{statusLabel(job.status)}</td>
+                    <td align="right">{job.rolledBackCount}</td>
+                    <td align="right">{job.failedCount}</td>
+                    <td>{formatTimestamp(job.completedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>No rollback jobs recorded yet.</p>
+        )}
+      </s-section>
+
+      <s-section heading="Audit timeline">
+        {data.auditTimeline.length ? (
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            {data.auditTimeline.map((event) => (
+              <div
+                key={event.id}
+                style={{ border: "1px solid #d9d9d9", padding: "0.75rem", borderRadius: "0.5rem" }}
+              >
+                <p style={{ margin: 0 }}>
+                  <strong>{formatAuditEvent(event.eventType)}</strong>
+                </p>
+                <p style={{ margin: 0 }}>When: {formatTimestamp(event.createdAt)}</p>
+                <p style={{ margin: 0 }}>Actor: {event.actor}</p>
+                {event.applyJobId ? <p style={{ margin: 0 }}>Apply job: {event.applyJobId}</p> : null}
+                {event.rollbackJobId ? <p style={{ margin: 0 }}>Rollback job: {event.rollbackJobId}</p> : null}
+                {event.reason ? <p style={{ margin: 0 }}>Detail: {event.reason}</p> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0 }}>No apply or rollback audit events recorded yet.</p>
+        )}
       </s-section>
 
       <s-section heading="Recent runs">
@@ -500,15 +903,9 @@ export default function ScanReviewRoute() {
             <p style={{ margin: 0 }}>
               Confidence: {confidenceLabel(data.selectedFinding.confidence)}
             </p>
-            <p style={{ margin: 0 }}>
-              Status: {statusLabel(data.selectedFinding.status)}
-            </p>
-            <p style={{ margin: 0 }}>
-              Basis items: {data.selectedFinding.basisCount}
-            </p>
-            <p style={{ margin: 0 }}>
-              Blockers: {data.selectedFinding.blockerCount}
-            </p>
+            <p style={{ margin: 0 }}>Status: {statusLabel(data.selectedFinding.status)}</p>
+            <p style={{ margin: 0 }}>Basis items: {data.selectedFinding.basisCount}</p>
+            <p style={{ margin: 0 }}>Blockers: {data.selectedFinding.blockerCount}</p>
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1rem" }}>
@@ -529,10 +926,7 @@ export default function ScanReviewRoute() {
             <reviewAction.Form method="post">
               <input name="intent" type="hidden" value="dismiss_selected" />
               <input name="findingId" type="hidden" value={data.selectedFinding.id} />
-              <button
-                disabled={data.readOnly || reviewAction.state !== "idle"}
-                type="submit"
-              >
+              <button disabled={data.readOnly || reviewAction.state !== "idle"} type="submit">
                 Dismiss suggestion
               </button>
             </reviewAction.Form>
@@ -543,7 +937,7 @@ export default function ScanReviewRoute() {
               <h2 style={{ fontSize: "1rem" }}>Why CategoryFix suggested this</h2>
               {data.selectedFinding.explanation.basis.length ? (
                 <ul>
-                  {data.selectedFinding.explanation.basis.map((basis: (typeof data.selectedFinding.explanation.basis)[number]) => (
+                  {data.selectedFinding.explanation.basis.map((basis) => (
                     <li key={`${basis.source}-${basis.matchedTerm}-${basis.rawValue}`}>
                       {basis.source}: matched “{basis.rawValue}” to “{basis.taxonomyFullPath}” via
                       {` ${basis.matchType.toLowerCase().replaceAll("_", " ")} `}
@@ -560,7 +954,7 @@ export default function ScanReviewRoute() {
               <h2 style={{ fontSize: "1rem" }}>Uncertainty and blockers</h2>
               {data.selectedFinding.explanation.blockers.length ? (
                 <ul>
-                  {data.selectedFinding.explanation.blockers.map((blocker: (typeof data.selectedFinding.explanation.blockers)[number]) => (
+                  {data.selectedFinding.explanation.blockers.map((blocker) => (
                     <li key={`${blocker.type}-${blocker.message}`}>{blocker.message}</li>
                   ))}
                 </ul>

@@ -5,11 +5,18 @@ import {
 } from "@prisma/client";
 import {
   getLatestScanRunForShop,
+  listAuditTimelineForShop,
+  listRecentApplyJobsForShop,
+  listRecentRollbackJobsForShop,
   getScanFindingDetailForReview,
   getScanRunById,
   listRecentScanRunsForShop,
   listScanFindingsForReview,
   updateScanFindingStatuses,
+  type ApplyJobSummary,
+  type ApplyJobsDatabaseClient,
+  type AuditTimelineEntry,
+  type RollbackJobSummary,
   type ScanDatabaseClient,
   type ScanFindingReviewFilters,
   type ScanFindingReviewPage,
@@ -39,7 +46,9 @@ export interface ReviewShopLookupClient {
   };
 }
 
-export type ReviewLoaderDatabaseClient = ScanDatabaseClient & ReviewShopLookupClient;
+export type ReviewLoaderDatabaseClient = ScanDatabaseClient &
+  ApplyJobsDatabaseClient &
+  ReviewShopLookupClient;
 
 export interface AuthenticatedAdminContext {
   session: {
@@ -77,9 +86,12 @@ export interface ScanDashboardPayload {
 }
 
 export interface ScanReviewRoutePayload {
+  applyJobs: ApplyJobSummary[];
+  auditTimeline: AuditTimelineEntry[];
   filters: ScanFindingReviewPage["filters"];
   findingsPage: ScanFindingReviewPage;
   pollEndpoint: string;
+  rollbackJobs: RollbackJobSummary[];
   scanRun: ScanRunDetail;
   scanHistory: Awaited<ReturnType<typeof listRecentScanRunsForShop>>;
   selectedFinding: Awaited<ReturnType<typeof getScanFindingDetailForReview>>;
@@ -274,10 +286,25 @@ export async function createScanReviewResponse(args: {
     { shopId: shopRecord.id, limit: 10 },
     database,
   );
+  const applyJobs = await listRecentApplyJobsForShop(
+    { shopId: shopRecord.id, limit: 5 },
+    database,
+  );
+  const rollbackJobs = await listRecentRollbackJobsForShop(
+    { shopId: shopRecord.id, limit: 5 },
+    database,
+  );
+  const auditTimeline = await listAuditTimelineForShop(
+    { shopId: shopRecord.id, limit: 20 },
+    database,
+  );
   const payload: ScanReviewRoutePayload = {
+    applyJobs,
+    auditTimeline,
     filters: findingsPage.filters,
     findingsPage,
     pollEndpoint: `/api/v1/scans/${scanRun.id}`,
+    rollbackJobs,
     scanRun,
     scanHistory,
     selectedFinding,

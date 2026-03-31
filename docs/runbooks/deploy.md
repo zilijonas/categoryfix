@@ -17,4 +17,9 @@ Document how to deploy the embedded app, worker process, and marketing site safe
 ## To be completed in later phases
 
 - staging to production promotion flow
-- post-deploy verification checklist for scan/apply/rollback paths
+
+## Phase 5 verification additions
+
+- Run a scan and confirm `/app/scans/:scanRunId` loads accepted findings and apply counts correctly.
+- Trigger a small apply job on a dev store and verify the latest apply job summary shows item-level results.
+- Trigger rollback for that job and verify the audit timeline and rollback summary update without leaving stale counts behind.

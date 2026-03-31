@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-test("merchants can review, accept, and dismiss persisted findings", async ({ page }) => {
+test("merchants can review, apply, and roll back persisted findings", async ({ page }) => {
   await page.goto("/app");
 
   await expect(page.getByText("Merchant review workspace")).toBeVisible();
   await page.getByRole("link", { name: "Open latest review" }).click();
 
   await expect(page.getByText("Future apply preview")).toBeVisible();
+  await expect(page.getByText("Apply changes")).toBeVisible();
 
   await page.getByLabel("Confidence").selectOption("REVIEW_REQUIRED");
   await page.getByRole("button", { name: "Apply filters" }).click();
@@ -24,6 +25,7 @@ test("merchants can review, accept, and dismiss persisted findings", async ({ pa
   await page.getByRole("link", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Accept all safe deterministic" }).click();
   await expect(page.getByText("Accepted for future apply: 3")).toBeVisible();
+  await expect(page.getByText("Safe accepted by default: 2")).toBeVisible();
 
   await page.getByLabel("Confidence").selectOption("ALL");
   await page.getByLabel("Product title").fill("Mystery");
@@ -41,4 +43,16 @@ test("merchants can review, accept, and dismiss persisted findings", async ({ pa
   await page.getByLabel("Status").selectOption("DISMISSED");
   await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page.getByText("Mystery Bundle")).toBeVisible();
+
+  await page.getByRole("link", { name: "Reset" }).click();
+  await page.getByRole("button", { name: "Apply safe accepted" }).click();
+  await expect(page.getByText("Latest apply job")).toBeVisible();
+  await expect(page.getByText("Applied: 2 of 2")).toBeVisible();
+  await expect(page.getByText("Already applied: 2")).toBeVisible();
+
+  await page.getByRole("button", { name: "Rollback applied items" }).click();
+  await expect(page.getByText("Latest rollback job")).toBeVisible();
+  await expect(page.getByText("Rolled back: 2 of 2")).toBeVisible();
+  await expect(page.getByText("Rolled back: 2")).toBeVisible();
+  await expect(page.getByText("Audit timeline")).toBeVisible();
 });

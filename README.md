@@ -2,7 +2,7 @@
 
 CategoryFix is a Shopify app for detecting, reviewing, and safely fixing missing or incorrect product categorization.
 
-This repository currently implements the foundation through phase 6:
+This repository currently implements the foundation through phase 7:
 
 - `pnpm` monorepo structure
 - governance rules for future AI coding agents
@@ -13,6 +13,7 @@ This repository currently implements the foundation through phase 6:
 - a local versioned taxonomy snapshot package with seed/import helpers
 - deterministic scan, review, apply, and rollback flows
 - Postgres-backed webhook freshness jobs with a Fly worker process
+- optional assistive AI fallback for deterministic no-safe suggestions with provenance
 
 ## Repository Layout
 
@@ -39,7 +40,7 @@ docs/
 
 ## Current Phase
 
-The repo has completed Phase 0 through Phase 6 from `ROADMAP.md`.
+The repo has completed Phase 0 through Phase 7 from `ROADMAP.md`.
 
 The main runtime lives in `apps/shop-admin` and follows the official Shopify React Router auth/session model.
 

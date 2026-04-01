@@ -9,7 +9,9 @@ import {
   markScanRunFailed,
   markScanRunRunning,
   markScanRunSucceeded,
+  searchTaxonomyCategories,
   syncRuleDefinitions,
+  type CreateScanFindingInput,
   type ScanConfidenceCounts,
   type ScanDatabaseClient,
   type ScanRunDetail,
@@ -27,6 +29,13 @@ import {
   ScanRunTrigger,
 } from "@prisma/client";
 import { z } from "zod";
+import {
+  buildAssistiveShortlist,
+  buildAssistiveShortlistFromTerms,
+  createAssistiveAiService,
+  PHASE7_AI_SOURCE,
+  type AssistiveAiService,
+} from "./ai-assist.server.js";
 import { resolveOfflineAdminContext, type OfflineAdminDatabaseClient } from "./offline-admin.server.js";
 
 export const SCAN_SOURCE = "phase3-deterministic-scan";
@@ -459,11 +468,150 @@ async function findManualOverrideProductIds(
   );
 }
 
+function createDeterministicFinding(args: {
+  scanRun: ScanRunDetail;
+  product: NormalizedBulkProduct;
+  recommendation: ReturnType<typeof evaluateDeterministicRecommendation>;
+}): CreateScanFindingInput {
+  return {
+    shopId: args.scanRun.shopId,
+    scanRunId: args.scanRun.id,
+    productId: args.product.productId,
+    productGid: args.product.productGid,
+    productHandle: args.product.handle,
+    productTitle: args.product.title,
+    evidence: args.recommendation.evidence as unknown as Prisma.InputJsonValue,
+    explanation: args.recommendation.explanation as unknown as Prisma.InputJsonValue,
+    currentCategoryId: args.product.currentCategory?.taxonomyId ?? null,
+    currentCategoryGid: args.product.currentCategory?.taxonomyGid ?? null,
+    recommendedCategoryId: args.recommendation.recommendedCategory?.taxonomyId ?? null,
+    recommendedCategoryGid: args.recommendation.recommendedCategory?.taxonomyGid ?? null,
+    confidence: decisionToConfidence(args.recommendation.decision),
+    source: SCAN_SOURCE,
+  };
+}
+
+async function maybeAssistNoSafeSuggestion(args: {
+  product: NormalizedBulkProduct;
+  finding: CreateScanFindingInput;
+  recommendationRuleKey: string;
+  scanRun: ScanRunDetail;
+  taxonomy: DeterministicTaxonomyReference;
+  database: Phase3DatabaseClient;
+  assistiveAi: AssistiveAiService | null;
+  shop: string;
+}): Promise<CreateScanFindingInput> {
+  if (
+    !args.assistiveAi ||
+    args.finding.confidence !== ScanFindingConfidence.NO_SAFE_SUGGESTION ||
+    args.recommendationRuleKey === "manual_override_active" ||
+    args.recommendationRuleKey === "already_matches_current_category"
+  ) {
+    return args.finding;
+  }
+
+  try {
+    const shortlist = await buildAssistiveShortlist({
+      product: {
+        title: args.product.title,
+        productType: args.product.productType,
+        tags: args.product.tags,
+        collections: args.product.collections,
+        currentCategory: args.product.currentCategory
+          ? {
+              taxonomyId: args.product.currentCategory.taxonomyId,
+              name: args.product.currentCategory.name,
+              fullPath: args.product.currentCategory.fullPath,
+            }
+          : null,
+      },
+      searchCategories: (query) =>
+        searchTaxonomyCategories(
+          query,
+          args.scanRun.taxonomyVersionId
+            ? {
+                versionId: args.scanRun.taxonomyVersionId,
+                limit: 8,
+              }
+            : {
+                limit: 8,
+              },
+          args.database as any,
+        ),
+    });
+
+    const effectiveShortlist =
+      shortlist.length > 0
+        ? shortlist
+        : buildAssistiveShortlistFromTerms({
+            product: {
+              title: args.product.title,
+              productType: args.product.productType,
+              tags: args.product.tags,
+              collections: args.product.collections,
+              currentCategory: args.product.currentCategory
+                ? {
+                    taxonomyId: args.product.currentCategory.taxonomyId,
+                    name: args.product.currentCategory.name,
+                    fullPath: args.product.currentCategory.fullPath,
+                  }
+                : null,
+            },
+            taxonomyTerms: args.taxonomy.terms,
+          });
+
+    if (!effectiveShortlist.length) {
+      return args.finding;
+    }
+
+    const suggestion = await args.assistiveAi.suggestFallback({
+      shop: args.shop,
+      product: {
+        title: args.product.title,
+        productType: args.product.productType,
+        tags: args.product.tags,
+        collections: args.product.collections,
+        currentCategory: args.product.currentCategory
+          ? {
+              taxonomyId: args.product.currentCategory.taxonomyId,
+              name: args.product.currentCategory.name,
+              fullPath: args.product.currentCategory.fullPath,
+            }
+          : null,
+      },
+      shortlist: effectiveShortlist,
+    });
+
+    if (!suggestion) {
+      return args.finding;
+    }
+
+    return {
+      ...args.finding,
+      recommendedCategoryId: suggestion.recommendedCategory.taxonomyId,
+      recommendedCategoryGid: suggestion.recommendedCategory.taxonomyGid,
+      confidence: ScanFindingConfidence.REVIEW_REQUIRED,
+      source: PHASE7_AI_SOURCE,
+      aiProvider: suggestion.provider,
+      aiModel: suggestion.model,
+      aiPromptVersion: suggestion.promptVersion,
+      aiGeneratedAt: suggestion.generatedAt,
+      aiInputFields: suggestion.inputFields as unknown as Prisma.InputJsonValue,
+      aiShortlistCount: suggestion.shortlistCount,
+      aiSummary: suggestion.summary,
+    };
+  } catch {
+    return args.finding;
+  }
+}
+
 async function ingestBulkResults(args: {
   scanRun: ScanRunDetail;
   taxonomy: DeterministicTaxonomyReference;
   products: readonly NormalizedBulkProduct[];
   database: Phase3DatabaseClient;
+  assistiveAi: AssistiveAiService | null;
+  shop: string;
 }) {
   let createdCount = 0;
   const batchSize = 100;
@@ -476,7 +624,7 @@ async function ingestBulkResults(args: {
       database: args.database,
     });
 
-    const findings = batch.map((product) => {
+    const findings = await Promise.all(batch.map(async (product) => {
       const recommendation = evaluateDeterministicRecommendation({
         product: {
           productId: product.productId,
@@ -494,23 +642,23 @@ async function ingestBulkResults(args: {
           manualOverrideIds.has(product.productId) || manualOverrideIds.has(product.productGid),
       });
 
-      return {
-        shopId: args.scanRun.shopId,
-        scanRunId: args.scanRun.id,
-        productId: product.productId,
-        productGid: product.productGid,
-        productHandle: product.handle,
-        productTitle: product.title,
-        evidence: recommendation.evidence as unknown as Prisma.InputJsonValue,
-        explanation: recommendation.explanation as unknown as Prisma.InputJsonValue,
-        currentCategoryId: product.currentCategory?.taxonomyId ?? null,
-        currentCategoryGid: product.currentCategory?.taxonomyGid ?? null,
-        recommendedCategoryId: recommendation.recommendedCategory?.taxonomyId ?? null,
-        recommendedCategoryGid: recommendation.recommendedCategory?.taxonomyGid ?? null,
-        confidence: decisionToConfidence(recommendation.decision),
-        source: SCAN_SOURCE,
-      };
-    });
+      const deterministicFinding = createDeterministicFinding({
+        scanRun: args.scanRun,
+        product,
+        recommendation,
+      });
+
+      return maybeAssistNoSafeSuggestion({
+        product,
+        finding: deterministicFinding,
+        recommendationRuleKey: recommendation.explanation.ruleKey,
+        scanRun: args.scanRun,
+        taxonomy: args.taxonomy,
+        database: args.database,
+        assistiveAi: args.assistiveAi,
+        shop: args.shop,
+      });
+    }));
 
     createdCount += await createScanFindings({ findings }, args.database);
   }
@@ -575,6 +723,7 @@ export async function syncRunningScan(args: {
   database: Phase3DatabaseClient;
   getOfflineAdminContext?: typeof resolveOfflineAdminContext;
   fetchImpl?: typeof fetch;
+  assistiveAi?: AssistiveAiService | null;
 }): Promise<SyncRunningScanResult> {
   if (
     args.scanRun.status !== ScanRunStatus.PENDING &&
@@ -684,6 +833,17 @@ export async function syncRunningScan(args: {
 
       try {
         const products = await loadBulkProducts(downloadUrl, fetchImpl);
+        const assistiveAi = (() => {
+          if (Object.prototype.hasOwnProperty.call(args, "assistiveAi")) {
+            return args.assistiveAi ?? null;
+          }
+
+          try {
+            return createAssistiveAiService();
+          } catch {
+            return null;
+          }
+        })();
 
         await ingestBulkResults({
           scanRun: args.scanRun,
@@ -693,6 +853,8 @@ export async function syncRunningScan(args: {
           },
           products,
           database: args.database,
+          assistiveAi,
+          shop: args.shop,
         });
 
         const scanRun = await markScanRunSucceeded(
@@ -813,6 +975,7 @@ export async function createScanRunResponse(args: {
   database: Phase3DatabaseClient;
   getOfflineAdminContext?: typeof resolveOfflineAdminContext;
   fetchImpl?: typeof fetch;
+  assistiveAi?: AssistiveAiService | null;
 }): Promise<Response> {
   const { session } = await args.authenticateAdmin(args.request);
   const resolveContext = args.getOfflineAdminContext ?? resolveOfflineAdminContext;
@@ -840,6 +1003,9 @@ export async function createScanRunResponse(args: {
       ? { getOfflineAdminContext: args.getOfflineAdminContext }
       : {}),
     ...(args.fetchImpl ? { fetchImpl: args.fetchImpl } : {}),
+    ...(Object.prototype.hasOwnProperty.call(args, "assistiveAi")
+      ? { assistiveAi: args.assistiveAi ?? null }
+      : {}),
   });
 
   if (syncedRun.outcome === "RETRYABLE_ERROR") {

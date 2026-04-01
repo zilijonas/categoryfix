@@ -434,6 +434,9 @@ export default function ScanReviewRoute() {
             Review required still open: {data.findingsPage.previewCounts.reviewRequiredOpen}
           </p>
           <p style={{ margin: 0 }}>
+            AI-assisted still open: {data.findingsPage.previewCounts.aiAssistedOpen}
+          </p>
+          <p style={{ margin: 0 }}>
             Already applied: {data.findingsPage.previewCounts.applied}
           </p>
           <p style={{ margin: 0 }}>
@@ -450,7 +453,8 @@ export default function ScanReviewRoute() {
         <div style={{ display: "grid", gap: "0.75rem" }}>
           <p style={{ margin: 0 }}>
             Default apply includes only accepted exact and strong matches. Accepted
-            review-required findings stay opt-in and must be selected explicitly.
+            review-required and AI-assisted findings stay opt-in and must be selected
+            explicitly.
           </p>
           <div style={{ display: "grid", gap: "0.35rem" }}>
             <p style={{ margin: 0 }}>
@@ -458,6 +462,9 @@ export default function ScanReviewRoute() {
             </p>
             <p style={{ margin: 0 }}>
               Review required accepted: {data.findingsPage.previewCounts.reviewRequiredAccepted}
+            </p>
+            <p style={{ margin: 0 }}>
+              AI-assisted accepted: {data.findingsPage.previewCounts.aiAssistedAccepted}
             </p>
             <p style={{ margin: 0 }}>
               Accepted selected on this page: {acceptedSelectedIds.length}
@@ -640,6 +647,11 @@ export default function ScanReviewRoute() {
                         <div style={{ display: "grid", gap: "0.25rem" }}>
                           <strong>{finding.productTitle}</strong>
                           <span>{finding.productHandle ? `/${finding.productHandle}` : "No handle"}</span>
+                          {finding.assistance ? (
+                            <span style={{ color: "#6f4e00", fontSize: "0.9rem" }}>
+                              {finding.assistance.label}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <td>{finding.currentCategory?.fullPath ?? "No category set"}</td>
@@ -974,6 +986,17 @@ export default function ScanReviewRoute() {
             <p style={{ margin: 0 }}>Status: {statusLabel(data.selectedFinding.status)}</p>
             <p style={{ margin: 0 }}>Basis items: {data.selectedFinding.basisCount}</p>
             <p style={{ margin: 0 }}>Blockers: {data.selectedFinding.blockerCount}</p>
+            {data.selectedFinding.assistance ? (
+              <>
+                <p style={{ margin: 0, color: "#6f4e00" }}>
+                  {data.selectedFinding.assistance.label}
+                </p>
+                <p style={{ margin: 0 }}>{data.selectedFinding.assistance.disclosure}</p>
+                <p style={{ margin: 0 }}>
+                  AI summary: {data.selectedFinding.assistance.summary}
+                </p>
+              </>
+            ) : null}
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1rem" }}>

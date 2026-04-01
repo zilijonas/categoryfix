@@ -191,6 +191,13 @@ model ScanFinding {
   confidence             ScanFindingConfidence
   status                 ScanFindingStatus     @default(OPEN)
   source                 String
+  aiProvider             String?
+  aiModel                String?
+  aiPromptVersion        String?
+  aiGeneratedAt          DateTime?
+  aiInputFields          Json?
+  aiShortlistCount       Int?
+  aiSummary              String?
   applyJobItems          ApplyJobItem[]
   createdAt              DateTime              @default(now())
 

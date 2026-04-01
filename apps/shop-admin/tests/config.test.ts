@@ -3,6 +3,7 @@ import {
   PHASE1_SHOPIFY_SCOPES,
   parseShopifyAppConfig,
 } from "@categoryfix/shopify-core";
+import { parseAssistiveAiConfig } from "../app/lib/ai-assist.server.js";
 
 const baseEnv = {
   DATABASE_URL: "postgresql://user:password@localhost:5432/categoryfix",
@@ -28,5 +29,31 @@ describe("parseShopifyAppConfig", () => {
         SHOPIFY_SCOPES: "read_products,write_products,read_orders",
       }),
     ).toThrow(/SHOPIFY_SCOPES/);
+  });
+});
+
+describe("parseAssistiveAiConfig", () => {
+  it("defaults to disabled when the AI flag is absent", () => {
+    const config = parseAssistiveAiConfig(baseEnv);
+
+    expect(config.enabled).toBe(false);
+    expect(config.model).toBeNull();
+  });
+
+  it("requires both the key and model when AI is enabled", () => {
+    expect(() =>
+      parseAssistiveAiConfig({
+        ...baseEnv,
+        CATEGORYFIX_AI_ENABLED: "true",
+      }),
+    ).toThrow(/OPENAI_API_KEY/);
+
+    expect(() =>
+      parseAssistiveAiConfig({
+        ...baseEnv,
+        CATEGORYFIX_AI_ENABLED: "true",
+        OPENAI_API_KEY: "test-openai-key",
+      }),
+    ).toThrow(/CATEGORYFIX_OPENAI_MODEL/);
   });
 });

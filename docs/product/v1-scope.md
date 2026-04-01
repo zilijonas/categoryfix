@@ -4,6 +4,7 @@
 
 - detect missing or likely-wrong Shopify product categories
 - deterministic recommendations with explanations
+- optional AI-assisted fallback suggestions for deterministic no-safe results
 - bulk review and safe bulk apply
 - rollback and audit history
 - embedded admin experience

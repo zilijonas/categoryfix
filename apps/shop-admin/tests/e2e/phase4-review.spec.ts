@@ -20,6 +20,12 @@ test("merchants can review, apply, and roll back persisted findings", async ({ p
     .getByRole("row", { name: /Paperback Novel/ })
     .getByRole("link", { name: "Inspect basis" })
     .click();
+  await expect(page.getByText("AI-assisted suggestion")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Suggested with assistive AI from limited product fields and local taxonomy candidates. Review before accepting.",
+    ),
+  ).toBeVisible();
   await expect(page.getByText("Why CategoryFix suggested this")).toBeVisible();
   await page.getByRole("button", { name: "Accept suggestion" }).click();
   await expect(page.getByText("Accepted for future apply: 1")).toBeVisible();

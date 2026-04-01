@@ -66,6 +66,13 @@ interface MockFinding {
   confidence: ScanFindingConfidence;
   status: ScanFindingStatus;
   source: string;
+  aiProvider?: string | null;
+  aiModel?: string | null;
+  aiPromptVersion?: string | null;
+  aiGeneratedAt?: Date | null;
+  aiInputFields?: string[] | null;
+  aiShortlistCount?: number | null;
+  aiSummary?: string | null;
   createdAt: Date;
 }
 
@@ -202,7 +209,14 @@ function createReviewDatabase() {
       recommendedCategoryGid: "gid://shopify/TaxonomyCategory/me-1-3",
       confidence: ScanFindingConfidence.REVIEW_REQUIRED,
       status: ScanFindingStatus.OPEN,
-      source: "phase3-deterministic-scan",
+      source: "phase7-ai-fallback",
+      aiProvider: "openai",
+      aiModel: "gpt-5.4-mini",
+      aiPromptVersion: "2026-04-01.phase7",
+      aiGeneratedAt: new Date("2026-04-01T09:00:00.000Z"),
+      aiInputFields: ["title"],
+      aiShortlistCount: 2,
+      aiSummary: "This looks more like a print book than another category.",
       createdAt: new Date("2026-03-31T12:05:00.000Z"),
     },
     {
@@ -636,6 +650,7 @@ describe("phase 4 review flows", () => {
     expect(page?.totalPages).toBe(1);
     expect(page?.previewCounts.readyToApply).toBe(1);
     expect(page?.previewCounts.safeDeterministicOpen).toBe(1);
+    expect(page?.previewCounts.aiAssistedOpen).toBe(1);
     expect(
       page?.items.map((item) => item.recommendedCategory?.fullPath),
     ).toContain("Media > Books > Print Books");
@@ -689,7 +704,9 @@ describe("phase 4 review flows", () => {
 
     expect(reviewPayload.readOnly).toBe(false);
     expect(reviewPayload.selectedFinding?.id).toBe("finding_2");
+    expect(reviewPayload.selectedFinding?.assistance?.label).toBe("AI-assisted suggestion");
     expect(reviewPayload.findingsPage.filters.status).toBe("OPEN");
+    expect(reviewPayload.findingsPage.previewCounts.aiAssistedOpen).toBe(1);
     expect(reviewPayload.freshness.recentWebhookDeliveryCount).toBe(0);
   });
 

@@ -61,6 +61,13 @@ interface MockFinding {
   confidence: ScanFindingConfidence;
   status: ScanFindingStatus;
   source: string;
+  aiProvider?: string | null;
+  aiModel?: string | null;
+  aiPromptVersion?: string | null;
+  aiGeneratedAt?: Date | null;
+  aiInputFields?: string[] | null;
+  aiShortlistCount?: number | null;
+  aiSummary?: string | null;
   createdAt: Date;
 }
 
@@ -313,7 +320,14 @@ function createMockState() {
         recommendedCategoryGid: "gid://shopify/TaxonomyCategory/me-1-3",
         confidence: ScanFindingConfidence.REVIEW_REQUIRED,
         status: ScanFindingStatus.OPEN,
-        source: "phase3-deterministic-scan",
+        source: "phase7-ai-fallback",
+        aiProvider: "openai",
+        aiModel: "gpt-5.4-mini",
+        aiPromptVersion: "2026-04-01.phase7",
+        aiGeneratedAt: new Date("2026-04-01T09:00:00.000Z"),
+        aiInputFields: ["title"],
+        aiShortlistCount: 2,
+        aiSummary: "This looks more like a print book than another category.",
         createdAt: new Date("2026-03-31T12:05:00.000Z"),
       },
       {

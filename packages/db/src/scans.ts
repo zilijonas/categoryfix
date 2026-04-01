@@ -50,9 +50,27 @@ type ScanFindingReviewRecord = Prisma.ScanFindingGetPayload<{
     confidence: true;
     status: true;
     source: true;
+    aiProvider: true;
+    aiModel: true;
+    aiPromptVersion: true;
+    aiGeneratedAt: true;
+    aiInputFields: true;
+    aiShortlistCount: true;
+    aiSummary: true;
     createdAt: true;
   };
 }>;
+
+export type ScanFindingAssistanceInputField =
+  | "title"
+  | "productType"
+  | "tags"
+  | "collections"
+  | "currentCategory";
+
+export const AI_ASSISTANCE_LABEL = "AI-assisted suggestion";
+export const AI_ASSISTANCE_DISCLOSURE =
+  "Suggested with assistive AI from limited product fields and local taxonomy candidates. Review before accepting.";
 
 export interface ScanFindingEvidencePayload {
   title: string;
@@ -114,6 +132,16 @@ export interface ScanFindingExplanationPayload {
   }>;
 }
 
+export interface ScanFindingAssistancePayload {
+  label: typeof AI_ASSISTANCE_LABEL;
+  summary: string;
+  disclosure: string;
+  model: string;
+  promptVersion: string;
+  generatedAt: string;
+  inputFields: ScanFindingAssistanceInputField[];
+}
+
 export interface ScanConfidenceCounts {
   exact: number;
   strong: number;
@@ -164,6 +192,8 @@ export interface ScanReviewPreviewCounts {
   reviewRequiredOpen: number;
   safeDeterministicAccepted: number;
   reviewRequiredAccepted: number;
+  aiAssistedOpen: number;
+  aiAssistedAccepted: number;
   noSafeSuggestion: number;
   readyToApply: number;
 }
@@ -180,6 +210,7 @@ export interface ScanFindingReviewListItem {
   source: string;
   currentCategory: ScanFindingCategorySummary | null;
   recommendedCategory: ScanFindingCategorySummary | null;
+  assistance: ScanFindingAssistancePayload | null;
   basisCount: number;
   blockerCount: number;
   createdAt: string;
@@ -234,6 +265,13 @@ export interface CreateScanFindingInput {
   confidence: ScanFindingConfidence;
   status?: ScanFindingStatus;
   source: string;
+  aiProvider?: string | null;
+  aiModel?: string | null;
+  aiPromptVersion?: string | null;
+  aiGeneratedAt?: string | Date | null;
+  aiInputFields?: Prisma.InputJsonValue | null;
+  aiShortlistCount?: number | null;
+  aiSummary?: string | null;
 }
 
 export interface ScanRuleDefinitionInput {
@@ -400,6 +438,56 @@ function parseFindingExplanationPayload(
   return value as unknown as ScanFindingExplanationPayload;
 }
 
+function parseFindingAssistanceInputFields(
+  value: Prisma.JsonValue | null,
+): ScanFindingAssistanceInputField[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is ScanFindingAssistanceInputField =>
+    entry === "title" ||
+    entry === "productType" ||
+    entry === "tags" ||
+    entry === "collections" ||
+    entry === "currentCategory",
+  );
+}
+
+function toFindingAssistancePayload(
+  record: Pick<
+    ScanFindingReviewRecord,
+    | "aiModel"
+    | "aiPromptVersion"
+    | "aiGeneratedAt"
+    | "aiInputFields"
+    | "aiSummary"
+    | "source"
+  >,
+): ScanFindingAssistancePayload | null {
+  if (
+    record.source !== "phase7-ai-fallback" ||
+    !record.aiModel ||
+    !record.aiPromptVersion ||
+    !record.aiGeneratedAt ||
+    !record.aiSummary
+  ) {
+    return null;
+  }
+
+  return {
+    label: AI_ASSISTANCE_LABEL,
+    summary: record.aiSummary,
+    disclosure: AI_ASSISTANCE_DISCLOSURE,
+    model: record.aiModel,
+    promptVersion: record.aiPromptVersion,
+    generatedAt: record.aiGeneratedAt.toISOString(),
+    inputFields: parseFindingAssistanceInputFields(
+      (record.aiInputFields as Prisma.JsonValue | null) ?? null,
+    ),
+  };
+}
+
 function toCategorySummary(
   taxonomyId: string | null,
   categoryLookup: Map<string, TaxonomyCategoryRecord>,
@@ -492,6 +580,7 @@ function toScanFindingReviewListItem(
       record.recommendedCategoryId ?? null,
       categoryLookup,
     ),
+    assistance: toFindingAssistancePayload(record),
     basisCount: explanation.basis.length,
     blockerCount: explanation.blockers.length,
     createdAt: record.createdAt.toISOString(),
@@ -519,11 +608,13 @@ async function loadPreviewCounts(
       confidence: true,
       status: true,
       recommendedCategoryId: true,
+      source: true,
     },
   })) as Array<{
     confidence: ScanFindingConfidence;
     status: ScanFindingStatus;
     recommendedCategoryId: string | null;
+    source: string;
   }>;
 
   const counts: ScanReviewPreviewCounts = {
@@ -537,6 +628,8 @@ async function loadPreviewCounts(
     reviewRequiredOpen: 0,
     safeDeterministicAccepted: 0,
     reviewRequiredAccepted: 0,
+    aiAssistedOpen: 0,
+    aiAssistedAccepted: 0,
     noSafeSuggestion: 0,
     readyToApply: 0,
   };
@@ -574,6 +667,10 @@ async function loadPreviewCounts(
         finding.confidence === ScanFindingConfidence.REVIEW_REQUIRED
       ) {
         counts.reviewRequiredOpen += 1;
+
+        if (finding.source === "phase7-ai-fallback") {
+          counts.aiAssistedOpen += 1;
+        }
       } else if (finding.confidence === ScanFindingConfidence.NO_SAFE_SUGGESTION) {
         counts.noSafeSuggestion += 1;
       }
@@ -595,6 +692,10 @@ async function loadPreviewCounts(
 
       if (finding.confidence === ScanFindingConfidence.REVIEW_REQUIRED) {
         counts.reviewRequiredAccepted += 1;
+
+        if (finding.source === "phase7-ai-fallback") {
+          counts.aiAssistedAccepted += 1;
+        }
       }
     }
   }
@@ -765,6 +866,13 @@ export async function listScanFindingsForReview(
       confidence: true,
       status: true,
       source: true,
+      aiProvider: true,
+      aiModel: true,
+      aiPromptVersion: true,
+      aiGeneratedAt: true,
+      aiInputFields: true,
+      aiShortlistCount: true,
+      aiSummary: true,
       createdAt: true,
     },
     orderBy: [
@@ -822,6 +930,13 @@ export async function getScanFindingDetailForReview(
       confidence: true,
       status: true,
       source: true,
+      aiProvider: true,
+      aiModel: true,
+      aiPromptVersion: true,
+      aiGeneratedAt: true,
+      aiInputFields: true,
+      aiShortlistCount: true,
+      aiSummary: true,
       createdAt: true,
     },
   })) as ScanFindingReviewRecord | null;
@@ -988,6 +1103,18 @@ export async function createScanFindings(
       confidence: finding.confidence,
       status: finding.status ?? ScanFindingStatus.OPEN,
       source: finding.source,
+      aiProvider: finding.aiProvider ?? null,
+      aiModel: finding.aiModel ?? null,
+      aiPromptVersion: finding.aiPromptVersion ?? null,
+      aiGeneratedAt:
+        finding.aiGeneratedAt instanceof Date
+          ? finding.aiGeneratedAt
+          : finding.aiGeneratedAt
+            ? new Date(finding.aiGeneratedAt)
+            : null,
+      aiInputFields: finding.aiInputFields ?? null,
+      aiShortlistCount: finding.aiShortlistCount ?? null,
+      aiSummary: finding.aiSummary ?? null,
     })),
     skipDuplicates: true,
   });

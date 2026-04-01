@@ -126,6 +126,7 @@ export interface TaxonomyCategoryLookup {
 
 export interface TaxonomyLookupOptions {
   version?: string;
+  versionId?: string;
   locale?: string;
 }
 
@@ -234,6 +235,14 @@ async function resolveTaxonomyVersion(
   database: TaxonomyLookupDatabaseClient,
 ) {
   const locale = options.locale ?? "en";
+
+  if (options.versionId) {
+    return database.taxonomyVersion.findUnique({
+      where: {
+        id: options.versionId,
+      },
+    });
+  }
 
   if (options.version) {
     return database.taxonomyVersion.findUnique({

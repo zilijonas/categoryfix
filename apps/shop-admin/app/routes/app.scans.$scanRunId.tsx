@@ -7,6 +7,7 @@ import {
   createScanReviewResponse,
   type ScanReviewRoutePayload,
 } from "../lib/scan-review.server.js";
+import { withRouteErrorReporting } from "../lib/route-observability.server.js";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 
@@ -31,7 +32,10 @@ interface ApplyJobStatusPayload {
   job: ApplyJobDetail;
 }
 
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+export const loader = withRouteErrorReporting(
+  "app.scans.$scanRunId",
+  "loader",
+  async ({ params, request }: LoaderFunctionArgs) => {
   const scanRunId = params.scanRunId;
 
   if (!scanRunId) {
@@ -50,9 +54,13 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   }
 
   return (await response.json()) as ScanReviewRoutePayload;
-};
+  },
+);
 
-export const action = async ({ params, request }: ActionFunctionArgs) => {
+export const action = withRouteErrorReporting(
+  "app.scans.$scanRunId",
+  "action",
+  async ({ params, request }: ActionFunctionArgs) => {
   const scanRunId = params.scanRunId;
 
   if (!scanRunId) {
@@ -65,7 +73,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     authenticateAdmin: authenticate.admin,
     database: prisma,
   });
-};
+  },
+);
 
 function formatTimestamp(value: string | null) {
   if (!value) {

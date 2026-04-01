@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  foundation:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,14 +28,14 @@ jobs:
       - name: Install workspace metadata
         run: pnpm install --no-frozen-lockfile
 
-      - name: Verify foundation
-        run: pnpm verify:foundation
+      - name: Lint and typecheck
+        run: pnpm lint
 
-      - name: Typecheck marketing site
-        run: pnpm --filter @categoryfix/marketing typecheck
+      - name: Unit and integration tests
+        run: pnpm test
 
-      - name: Test marketing site content and links
-        run: pnpm --filter @categoryfix/marketing test
+      - name: Production builds
+        run: pnpm build
 
-      - name: Build marketing site
-        run: pnpm --filter @categoryfix/marketing build
+      - name: Browser workflow test
+        run: pnpm test:e2e

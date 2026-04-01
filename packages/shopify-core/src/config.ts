@@ -1,5 +1,6 @@
 import { ApiVersion } from "@shopify/shopify-app-react-router/server";
 import { z } from "zod";
+import { parseObservabilityConfig } from "./logger.js";
 
 export const PHASE1_SHOPIFY_SCOPES = ["read_products", "write_products"] as const;
 export const MANDATORY_WEBHOOKS = [
@@ -14,8 +15,13 @@ const envSchema = z.object({
   SHOPIFY_API_KEY: z.string().min(1, "SHOPIFY_API_KEY is required"),
   SHOPIFY_API_SECRET: z.string().min(1, "SHOPIFY_API_SECRET is required"),
   SHOPIFY_APP_URL: z.string().url("SHOPIFY_APP_URL must be a valid URL"),
+  SHOPIFY_STAGING_APP_URL: z.string().url().optional(),
+  SHOPIFY_PRODUCTION_APP_URL: z.string().url().optional(),
   SHOPIFY_SCOPES: z.string().min(1, "SHOPIFY_SCOPES is required"),
   SHOPIFY_WEBHOOK_API_VERSION: z.literal("2025-10"),
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().trim().min(1).optional(),
+  SENTRY_RELEASE: z.string().trim().min(1).optional(),
 });
 
 export interface CategoryFixShopifyConfig {
@@ -26,6 +32,15 @@ export interface CategoryFixShopifyConfig {
   scopes: readonly string[];
   webhookApiVersion: "2025-10";
   apiVersion: ApiVersion.October25;
+  deploymentTargets: {
+    stagingAppUrl: string | null;
+    productionAppUrl: string | null;
+  };
+  observability: {
+    enabled: boolean;
+    environment: string;
+    release: string | null;
+  };
 }
 
 function normalizeScopes(rawScopes: string): readonly string[] {
@@ -53,6 +68,7 @@ export function parseShopifyAppConfig(
   env: NodeJS.ProcessEnv,
 ): CategoryFixShopifyConfig {
   const parsed = envSchema.parse(env);
+  const observability = parseObservabilityConfig(parsed);
 
   return {
     apiKey: parsed.SHOPIFY_API_KEY,
@@ -62,5 +78,14 @@ export function parseShopifyAppConfig(
     scopes: normalizeScopes(parsed.SHOPIFY_SCOPES),
     webhookApiVersion: parsed.SHOPIFY_WEBHOOK_API_VERSION,
     apiVersion: ApiVersion.October25,
+    deploymentTargets: {
+      stagingAppUrl: parsed.SHOPIFY_STAGING_APP_URL ?? null,
+      productionAppUrl: parsed.SHOPIFY_PRODUCTION_APP_URL ?? null,
+    },
+    observability: {
+      enabled: observability.enabled,
+      environment: observability.environment,
+      release: observability.release,
+    },
   };
 }

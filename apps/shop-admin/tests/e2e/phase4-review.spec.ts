@@ -39,7 +39,7 @@ test("merchants can review, apply, and roll back persisted findings", async ({ p
   await page.getByLabel("Confidence").selectOption("ALL");
   await page.getByLabel("Product title").fill("Mystery");
   await page.getByRole("button", { name: "Apply filters" }).click();
-  await expect(page.getByText("Mystery Bundle")).toBeVisible();
+  await expect(page.getByRole("row", { name: /Mystery Bundle/ })).toBeVisible();
 
   await page
     .getByRole("row", { name: /Mystery Bundle/ })
@@ -51,7 +51,7 @@ test("merchants can review, apply, and roll back persisted findings", async ({ p
   await page.reload();
   await page.getByLabel("Status").selectOption("DISMISSED");
   await page.getByRole("button", { name: "Apply filters" }).click();
-  await expect(page.getByText("Mystery Bundle")).toBeVisible();
+  await expect(page.getByRole("row", { name: /Mystery Bundle/ })).toBeVisible();
 
   await page.getByRole("link", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Apply safe accepted" }).click();

@@ -15,4 +15,6 @@ coverage
 .vite
 .vercel
 .astro
+playwright-report
+test-results
 *.log

@@ -5,6 +5,7 @@ import {
   createScanDashboardResponse,
   type ScanDashboardPayload,
 } from "../lib/scan-review.server.js";
+import { withRouteErrorReporting } from "../lib/route-observability.server.js";
 import { authenticate } from "../shopify.server.js";
 import { prisma } from "../db.server.js";
 
@@ -30,7 +31,10 @@ interface ScanStatusPayload {
   };
 }
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = withRouteErrorReporting(
+  "app._index",
+  "loader",
+  async ({ request }: LoaderFunctionArgs) => {
   const response = await createScanDashboardResponse({
     request,
     authenticateAdmin: authenticate.admin,
@@ -38,7 +42,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   return (await response.json()) as ScanDashboardPayload;
-};
+  },
+);
 
 function formatTimestamp(value: string | null) {
   if (!value) {

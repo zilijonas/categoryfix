@@ -20,6 +20,15 @@ describe("phase 1 route helpers", () => {
         scopes: ["read_products", "write_products"],
         webhookApiVersion: "2025-10",
         apiVersion: ApiVersion.October25,
+        deploymentTargets: {
+          stagingAppUrl: "https://staging-app.categoryfix.com",
+          productionAppUrl: "https://app.categoryfix.com",
+        },
+        observability: {
+          enabled: false,
+          environment: "test",
+          release: null,
+        },
       },
       database: {
         shop: {

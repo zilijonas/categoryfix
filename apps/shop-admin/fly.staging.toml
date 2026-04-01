@@ -1,0 +1,24 @@
+app = "categoryfix-shop-admin-staging"
+primary_region = "ams"
+
+[build]
+  dockerfile = "apps/shop-admin/Dockerfile"
+
+[deploy]
+  release_command = "pnpm --filter @categoryfix/db prisma:migrate:deploy"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[processes]
+  app = "pnpm --filter @categoryfix/shop-admin start"
+  worker = "pnpm --filter @categoryfix/shop-admin worker"
+
+[http_service]
+  internal_port = 3000
+  processes = ["app"]
+  force_https = true
+  auto_start_machines = true
+  auto_stop_machines = true
+  min_machines_running = 0

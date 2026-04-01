@@ -3,6 +3,7 @@ import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
+import { logStructuredError } from "@categoryfix/shopify-core";
 import { addDocumentResponseHeaders } from "./shopify.server.js";
 
 export const streamTimeout = 5_000;
@@ -39,7 +40,13 @@ export default async function handleRequest(
         },
         onError(error) {
           responseStatusCode = 500;
-          console.error(error);
+          logStructuredError(
+            "categoryfix.http.render_failed",
+            {
+              pathname: new URL(request.url).pathname,
+            },
+            error,
+          );
         },
         onShellError(error) {
           reject(error);

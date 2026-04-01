@@ -4,6 +4,23 @@
 
 Document how to recover from bad application deploys and how to safely reverse category writes.
 
+## Runtime deploy rollback
+
+- Owner: release engineer on call.
+- Trigger: staging smoke failure, production smoke failure, elevated error rate, broken auth/session flow, or Shopify review-blocking regression.
+- First response:
+  - stop further promotions
+  - capture the failing release SHA and deployment time
+  - confirm whether the issue is app runtime, worker processing, or static public-site content
+- App/runtime rollback procedure:
+  - redeploy the last known-good Fly release for the affected environment
+  - verify `/api/v1/health` returns `200`
+  - verify `/app` reaches either the embedded shell or the expected auth redirect
+  - verify invalid compliance webhook requests still return `401`
+- Worker rollback procedure:
+  - confirm the worker process is running the same last known-good release as the app
+  - verify pending freshness jobs move again before reopening the release gate
+
 ## Apply-job rollback steps
 
 - Open the latest review screen for the affected shop in the embedded app.
@@ -23,8 +40,5 @@ Document how to recover from bad application deploys and how to safely reverse c
 - Confirm the affected apply or rollback job appears in the audit timeline.
 - Spot-check products in Shopify Admin to verify the current category matches the job result.
 - Re-run the scan if any items were skipped as stale or if merchant edits happened during the incident window.
-- Capture the apply job id, rollback job id, and any failing product ids in incident notes.
-
-## Deploy rollback placeholder
-
-- Fly deployment rollback steps are still documented separately and will be expanded in later phases.
+- Capture the apply job id, rollback job id, any failing product ids, and the runtime release identifier in incident notes.
+- Confirm whether Sentry recorded the incident before closing the event.

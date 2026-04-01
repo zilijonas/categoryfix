@@ -1,6 +1,9 @@
 import type { DatabaseClient } from "@categoryfix/db";
 import { checkDatabaseHealth } from "@categoryfix/db";
-import type { CategoryFixShopifyConfig } from "@categoryfix/shopify-core";
+import {
+  logStructuredError,
+  type CategoryFixShopifyConfig,
+} from "@categoryfix/shopify-core";
 
 export async function createHealthResponse(args: {
   appConfig: CategoryFixShopifyConfig;
@@ -13,21 +16,41 @@ export async function createHealthResponse(args: {
       status: "ok",
       app: {
         appUrl: args.appConfig.appUrl,
+        deploymentTargets: args.appConfig.deploymentTargets,
         scopes: args.appConfig.scopes,
         webhookApiVersion: args.appConfig.webhookApiVersion,
+      },
+      observability: {
+        enabled: args.appConfig.observability.enabled,
+        environment: args.appConfig.observability.environment,
+        release: args.appConfig.observability.release,
       },
       database: {
         status: "ok",
       },
     });
   } catch (error) {
+    logStructuredError(
+      "categoryfix.health.degraded",
+      {
+        appUrl: args.appConfig.appUrl,
+      },
+      error,
+    );
+
     return Response.json(
       {
         status: "degraded",
         app: {
           appUrl: args.appConfig.appUrl,
+          deploymentTargets: args.appConfig.deploymentTargets,
           scopes: args.appConfig.scopes,
           webhookApiVersion: args.appConfig.webhookApiVersion,
+        },
+        observability: {
+          enabled: args.appConfig.observability.enabled,
+          environment: args.appConfig.observability.environment,
+          release: args.appConfig.observability.release,
         },
         database: {
           status: "error",

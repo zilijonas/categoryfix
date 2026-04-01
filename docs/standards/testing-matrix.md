@@ -11,4 +11,4 @@
 - Phase 6: webhook idempotency and worker retry coverage
 - Phase 7: AI fallback and provenance tests
 - Phase 8: content and link validation for marketing/legal pages
-- Phase 9: staging smoke tests and production-readiness checks
+- Phase 9: green CI (`lint`, `test`, `build`, `test:e2e`), staging smoke tests, restore drill evidence, and production-readiness checks

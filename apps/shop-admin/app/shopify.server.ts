@@ -1,6 +1,13 @@
 import "@shopify/shopify-app-react-router/adapters/node";
 import { prisma } from "./db.server.js";
-import { createCategoryFixShopifyApp } from "@categoryfix/shopify-core";
+import {
+  createCategoryFixShopifyApp,
+  initializeObservability,
+} from "@categoryfix/shopify-core";
+
+initializeObservability(process.env, {
+  serviceName: "categoryfix-shop-admin",
+});
 
 const isE2EMock = process.env.CATEGORYFIX_E2E_MOCK === "1";
 const mockShop = process.env.CATEGORYFIX_E2E_SHOP ?? "demo.myshopify.com";

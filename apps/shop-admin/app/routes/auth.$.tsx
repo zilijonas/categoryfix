@@ -1,12 +1,15 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { withRouteErrorReporting } from "../lib/route-observability.server.js";
 import { authenticate } from "../shopify.server.js";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = withRouteErrorReporting("auth.$", "loader", async ({
+  request,
+}: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
   return null;
-};
+});
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

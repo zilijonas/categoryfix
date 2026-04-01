@@ -2,15 +2,18 @@ import { Outlet, useLoaderData, useRouteError } from "react-router";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { withRouteErrorReporting } from "../lib/route-observability.server.js";
 import { appConfig, authenticate } from "../shopify.server.js";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = withRouteErrorReporting("app", "loader", async ({
+  request,
+}: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
   return {
     apiKey: appConfig.apiKey,
   };
-};
+});
 
 export default function AppLayout() {
   const { apiKey } = useLoaderData<typeof loader>();

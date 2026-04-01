@@ -1,9 +1,13 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { prisma } from "../db.server.js";
 import { createRollbackJobStatusResponse } from "../lib/apply-jobs.server.js";
+import { withRouteErrorReporting } from "../lib/route-observability.server.js";
 import { authenticate } from "../shopify.server.js";
 
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+export const loader = withRouteErrorReporting(
+  "api.v1.rollback-jobs.$rollbackJobId",
+  "loader",
+  async ({ params, request }: LoaderFunctionArgs) => {
   const rollbackJobId = params.rollbackJobId;
 
   if (!rollbackJobId) {
@@ -16,4 +20,5 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     authenticateAdmin: authenticate.admin,
     database: prisma,
   });
-};
+  },
+);

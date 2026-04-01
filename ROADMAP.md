@@ -454,7 +454,8 @@ Dependencies:
 
 Technical notes:
 
-- do not use GitHub Pages for production SaaS hosting
+- do not use GitHub Pages for the embedded app runtime, OAuth surface, webhooks, or worker services
+- static marketing, support, and legal pages may remain on GitHub Pages if the published URLs are stable and Shopify review requirements are still met
 - keep claims aligned with actual product capabilities
 
 Risks:
@@ -508,6 +509,7 @@ Technical notes:
 
 - limited visibility is still a public-app path and still requires App Store review
 - verify all compliance webhooks, privacy URLs, and session-token behavior before submission
+- treat the app runtime and background worker as dedicated hosted services; public static pages may use separate static hosting when their URLs remain stable for review
 
 Risks:
 

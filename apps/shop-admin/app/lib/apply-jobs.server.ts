@@ -25,6 +25,7 @@ import {
 import {
   mockReadLiveProductState,
   mockWriteProductCategory,
+  getMockReviewDatabase,
 } from "./scan-review.mock.server.js";
 
 const APPLY_JOB_SOURCE = "phase5-apply-job";
@@ -641,9 +642,13 @@ export async function createApplyJobMutationResponse(args: {
   authenticateAdmin: (request: Request) => Promise<AuthenticatedAdminContext>;
   database: ApplyJobsRouteDatabaseClient;
 }): Promise<Response> {
+  const database =
+    process.env.CATEGORYFIX_E2E_MOCK === "1"
+      ? (getMockReviewDatabase() as ApplyJobsRouteDatabaseClient)
+      : args.database;
   const requestId = getRequestId(args.request);
   const { session } = await args.authenticateAdmin(args.request);
-  const shopRecord = await requireShopRecord(session.shop, args.database);
+  const shopRecord = await requireShopRecord(session.shop, database);
 
   if (!shopRecord) {
     return Response.json({ error: "Shop installation not found." }, { status: 404 });
@@ -665,7 +670,7 @@ export async function createApplyJobMutationResponse(args: {
       reason,
       actor: session.shop,
     },
-    args.database,
+    database,
   );
 
   if (!applyJob) {
@@ -681,7 +686,7 @@ export async function createApplyJobMutationResponse(args: {
     applyJobId: applyJob.id,
     actor: session.shop,
     requestId,
-    database: args.database,
+    database,
   });
 
   return Response.json({ job: finalizedJob ?? applyJob, requestId });
@@ -693,8 +698,12 @@ export async function createApplyJobStatusResponse(args: {
   authenticateAdmin: (request: Request) => Promise<AuthenticatedAdminContext>;
   database: ApplyJobsRouteDatabaseClient;
 }): Promise<Response> {
+  const database =
+    process.env.CATEGORYFIX_E2E_MOCK === "1"
+      ? (getMockReviewDatabase() as ApplyJobsRouteDatabaseClient)
+      : args.database;
   const { session } = await args.authenticateAdmin(args.request);
-  const shopRecord = await requireShopRecord(session.shop, args.database);
+  const shopRecord = await requireShopRecord(session.shop, database);
 
   if (!shopRecord) {
     return Response.json({ error: "Shop installation not found." }, { status: 404 });
@@ -705,7 +714,7 @@ export async function createApplyJobStatusResponse(args: {
       shopId: shopRecord.id,
       applyJobId: args.applyJobId,
     },
-    args.database,
+    database,
   );
 
   if (!job) {
@@ -720,9 +729,13 @@ export async function createRollbackJobMutationResponse(args: {
   authenticateAdmin: (request: Request) => Promise<AuthenticatedAdminContext>;
   database: ApplyJobsRouteDatabaseClient;
 }): Promise<Response> {
+  const database =
+    process.env.CATEGORYFIX_E2E_MOCK === "1"
+      ? (getMockReviewDatabase() as ApplyJobsRouteDatabaseClient)
+      : args.database;
   const requestId = getRequestId(args.request);
   const { session } = await args.authenticateAdmin(args.request);
-  const shopRecord = await requireShopRecord(session.shop, args.database);
+  const shopRecord = await requireShopRecord(session.shop, database);
 
   if (!shopRecord) {
     return Response.json({ error: "Shop installation not found." }, { status: 404 });
@@ -743,7 +756,7 @@ export async function createRollbackJobMutationResponse(args: {
       reason,
       actor: session.shop,
     },
-    args.database,
+    database,
   );
 
   if (!rollbackJob) {
@@ -759,7 +772,7 @@ export async function createRollbackJobMutationResponse(args: {
     rollbackJobId: rollbackJob.id,
     actor: session.shop,
     requestId,
-    database: args.database,
+    database,
   });
 
   return Response.json({ job: finalizedJob ?? rollbackJob, requestId });
@@ -771,8 +784,12 @@ export async function createRollbackJobStatusResponse(args: {
   authenticateAdmin: (request: Request) => Promise<AuthenticatedAdminContext>;
   database: ApplyJobsRouteDatabaseClient;
 }): Promise<Response> {
+  const database =
+    process.env.CATEGORYFIX_E2E_MOCK === "1"
+      ? (getMockReviewDatabase() as ApplyJobsRouteDatabaseClient)
+      : args.database;
   const { session } = await args.authenticateAdmin(args.request);
-  const shopRecord = await requireShopRecord(session.shop, args.database);
+  const shopRecord = await requireShopRecord(session.shop, database);
 
   if (!shopRecord) {
     return Response.json({ error: "Shop installation not found." }, { status: 404 });
@@ -783,7 +800,7 @@ export async function createRollbackJobStatusResponse(args: {
       shopId: shopRecord.id,
       rollbackJobId: args.rollbackJobId,
     },
-    args.database,
+    database,
   );
 
   if (!job) {

@@ -4,5 +4,13 @@ export {
   parseShopifyAppConfig,
   type CategoryFixShopifyConfig,
 } from "./config.js";
-export { logStructuredEvent } from "./logger.js";
+export {
+  captureException,
+  createLogger,
+  initializeObservability,
+  logStructuredError,
+  logStructuredEvent,
+  logStructuredWarning,
+  parseObservabilityConfig,
+} from "./logger.js";
 export { authenticateWebhookRequest, createCategoryFixShopifyApp } from "./server.js";

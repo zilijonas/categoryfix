@@ -13,12 +13,15 @@ Current responsibilities:
 - product webhook ingestion with idempotent debounce scheduling
 - Postgres-backed background worker execution for webhook freshness
 - audit timeline visibility for merchant write activity
+- Sentry-backed exception reporting and structured correlation-aware logging for runtime and worker failures
+- separate Fly configs for staging and production promotion gates
 
 Core commands:
 
 - `pnpm --filter @categoryfix/shop-admin dev`
 - `pnpm --filter @categoryfix/shop-admin build`
 - `pnpm --filter @categoryfix/shop-admin start`
+- `pnpm --filter @categoryfix/shop-admin test:e2e`
 
 Implementation notes:
 
@@ -28,4 +31,4 @@ Implementation notes:
 - Keeps custom auth out of the embedded surface
 - Uses offline admin sessions for scan and write operations
 - Uses the same deployment image for both the web app and the Phase 6 worker process
-- Deploys on Fly with `apps/shop-admin/fly.toml` and `apps/shop-admin/Dockerfile`
+- Deploys on Fly with `apps/shop-admin/fly.staging.toml`, `apps/shop-admin/fly.production.toml`, and `apps/shop-admin/Dockerfile`

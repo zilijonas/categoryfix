@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, useActionData, useLoaderData } from "react-router";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
+import { withRouteErrorReporting } from "../../lib/route-observability.server.js";
 import { login } from "../../shopify.server.js";
 
 interface LoginErrors {
@@ -43,13 +44,21 @@ async function resolveLoginResult(request: Request) {
   };
 }
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  return resolveLoginResult(request);
-};
+export const loader = withRouteErrorReporting(
+  "auth.login",
+  "loader",
+  async ({ request }: LoaderFunctionArgs) => {
+    return resolveLoginResult(request);
+  },
+);
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  return resolveLoginResult(request);
-};
+export const action = withRouteErrorReporting(
+  "auth.login",
+  "action",
+  async ({ request }: ActionFunctionArgs) => {
+    return resolveLoginResult(request);
+  },
+);
 
 export default function LoginRoute() {
   const loaderData = useLoaderData<typeof loader>();

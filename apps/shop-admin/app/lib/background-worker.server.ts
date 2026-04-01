@@ -23,7 +23,7 @@ import {
   type BackgroundJobsDatabaseClient,
 } from "@categoryfix/db";
 import { PHASE3_RULE_DEFINITIONS } from "@categoryfix/domain";
-import { logStructuredEvent } from "@categoryfix/shopify-core";
+import { createLogger } from "@categoryfix/shopify-core";
 import {
   resolveOfflineAdminContext,
   type OfflineAdminContext,
@@ -298,11 +298,14 @@ export async function runBackgroundWorkerOnce(args: {
     return false;
   }
 
-  logStructuredEvent("categoryfix.background_job.claimed", {
+  const logger = createLogger({
     workerId: args.workerId,
     jobId: job.id,
     shopId: job.shopDomain,
     kind: job.kind,
+  });
+
+  logger.info("categoryfix.background_job.claimed", {
     status: job.status,
   });
 
@@ -325,11 +328,7 @@ export async function runBackgroundWorkerOnce(args: {
             ...(args.fetchImpl ? { fetchImpl: args.fetchImpl } : {}),
           });
 
-    logStructuredEvent("categoryfix.background_job.completed", {
-      workerId: args.workerId,
-      jobId: job.id,
-      shopId: job.shopDomain,
-      kind: job.kind,
+    logger.info("categoryfix.background_job.completed", {
       status: outcome.status,
       attempts: outcome.attemptCount,
     });
@@ -349,11 +348,7 @@ export async function runBackgroundWorkerOnce(args: {
         : {}),
     });
 
-    logStructuredEvent("categoryfix.background_job.failed", {
-      workerId: args.workerId,
-      jobId: job.id,
-      shopId: job.shopDomain,
-      kind: job.kind,
+    logger.error("categoryfix.background_job.failed", error, {
       status: outcome.status,
       attempts: outcome.attemptCount,
       errorMessage: message,

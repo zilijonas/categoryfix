@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { TaxonomyCategoryLookup } from "@categoryfix/db";
+import { logStructuredError, logStructuredWarning } from "@categoryfix/shopify-core";
 
 export const PHASE7_AI_SOURCE = "phase7-ai-fallback";
 export const PHASE7_AI_PROMPT_VERSION = "2026-04-01.phase7";
@@ -353,49 +354,70 @@ export function createAssistiveAiService(
         ].filter((value): value is z.infer<typeof assistiveInputFieldSchema> => Boolean(value)),
       );
 
-      const response = await client.responses.parse(
-        {
-          model,
-          input: [
-            {
-              role: "system",
-              content: [
-                {
-                  type: "input_text",
-                  text:
-                    "You help merchants review uncertain Shopify taxonomy suggestions. Pick exactly one category from the provided shortlist and explain it briefly without overstating certainty.",
-                },
-              ],
+      try {
+        const response = await client.responses.parse(
+          {
+            model,
+            input: [
+              {
+                role: "system",
+                content: [
+                  {
+                    type: "input_text",
+                    text:
+                      "You help merchants review uncertain Shopify taxonomy suggestions. Pick exactly one category from the provided shortlist and explain it briefly without overstating certainty.",
+                  },
+                ],
+              },
+              {
+                role: "user",
+                content: [{ type: "input_text", text: buildPrompt(args) }],
+              },
+            ],
+            text: {
+              format: zodTextFormat(
+                assistiveSuggestionSchema,
+                "categoryfix_assistive_suggestion",
+              ),
+              verbosity: "low",
             },
-            {
-              role: "user",
-              content: [{ type: "input_text", text: buildPrompt(args) }],
-            },
-          ],
-          text: {
-            format: zodTextFormat(
-              assistiveSuggestionSchema,
-              "categoryfix_assistive_suggestion",
-            ),
-            verbosity: "low",
           },
-        },
-        {
-          signal: AbortSignal.timeout(config.timeoutMs),
-        },
-      );
+          {
+            signal: AbortSignal.timeout(config.timeoutMs),
+          },
+        );
 
-      if (!response.output_parsed) {
+        if (!response.output_parsed) {
+          logStructuredWarning("categoryfix.ai.no_structured_output", {
+            shopId: args.shop,
+            shortlistCount: args.shortlist.length,
+            model,
+          });
+
+          return null;
+        }
+
+        return parseAssistiveSuggestion({
+          parsed: response.output_parsed,
+          shortlist: args.shortlist,
+          allowedInputFields,
+          model,
+          promptVersion: config.promptVersion,
+        });
+      } catch (error) {
+        logStructuredError(
+          "categoryfix.ai.request_failed",
+          {
+            shopId: args.shop,
+            shortlistCount: args.shortlist.length,
+            model,
+            promptVersion: config.promptVersion,
+          },
+          error,
+        );
+
         return null;
       }
-
-      return parseAssistiveSuggestion({
-        parsed: response.output_parsed,
-        shortlist: args.shortlist,
-        allowedInputFields,
-        model,
-        promptVersion: config.promptVersion,
-      });
     },
   };
 }

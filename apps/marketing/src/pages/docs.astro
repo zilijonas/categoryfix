@@ -1,0 +1,90 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { betaMailtoHref, withBase } from "../content/site.js";
+---
+
+<MarketingLayout
+  title="Docs"
+  description="Merchant-facing guidance for CategoryFix scan, review, apply, rollback, and support expectations."
+>
+  <section class="page-hero">
+    <p class="eyebrow">Merchant docs</p>
+    <h1>Start with the workflow merchants actually use.</h1>
+    <p>
+      This page is intentionally product-facing. It explains what CategoryFix checks, how review and
+      apply behave, and when to contact support during the closed beta.
+    </p>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Quick start</p>
+        <h2>What to expect inside the app</h2>
+      </div>
+    </div>
+
+    <div class="docs-grid">
+      <article>
+        <h3>Run a scan</h3>
+        <p>
+          Start with a fresh scan so the review surface reflects current Shopify category state and
+          product signals.
+        </p>
+      </article>
+      <article>
+        <h3>Review findings by status</h3>
+        <p>
+          Accepted deterministic findings can be safer bulk candidates, while review-required and
+          AI-assisted outcomes deserve closer inspection.
+        </p>
+      </article>
+      <article>
+        <h3>Use preview counts before apply</h3>
+        <p>
+          Preview counts make the upcoming change set explicit. Review the number of products and the
+          basis behind them before you confirm.
+        </p>
+      </article>
+      <article>
+        <h3>Keep rollback in mind</h3>
+        <p>
+          After an apply job completes, rollback remains available when an approved category change
+          needs to be reversed.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">What CategoryFix evaluates</p>
+        <h2>Signals used for deterministic recommendations</h2>
+      </div>
+    </div>
+
+    <ul class="plain-list">
+      <li>Product title</li>
+      <li>Product type</li>
+      <li>Vendor</li>
+      <li>Tags</li>
+      <li>Collections, when available</li>
+      <li>Current Shopify category state</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Need help?</p>
+        <h2>Support stays simple during the closed beta</h2>
+      </div>
+    </div>
+
+    <div class="stacked-actions">
+      <a class="button" href={withBase("/support")}>Open support guidance</a>
+      <a class="button button-secondary" href={betaMailtoHref}>Email the beta team</a>
+    </div>
+  </section>
+</MarketingLayout>

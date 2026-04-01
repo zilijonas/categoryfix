@@ -1,0 +1,68 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { betaMailtoHref, createMailtoHref, siteConfig, withBase } from "../content/site.js";
+---
+
+<MarketingLayout
+  title="Support"
+  description="Support page for CategoryFix closed-beta merchants, with contact expectations and product guidance links."
+>
+  <section class="page-hero">
+    <p class="eyebrow">Support</p>
+    <h1>Support starts with a direct email channel during beta.</h1>
+    <p>
+      Closed-beta support is currently email-based. Reach the team at{" "}
+      <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a> and include store
+      context, scan or job identifiers when available, and a short description of what changed.
+    </p>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">When to contact support</p>
+        <h2>Use the support channel when the workflow needs a human check-in.</h2>
+      </div>
+    </div>
+
+    <div class="support-grid">
+      <article class="card">
+        <h3>Recommendation questions</h3>
+        <p>
+          Reach out when a recommendation basis looks incomplete, unclear, or mismatched with your
+          catalog expectations.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Apply or rollback follow-up</h3>
+        <p>
+          Contact support if an apply or rollback job needs review, especially when a product
+          category changed again in Shopify after the original write.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Privacy or beta access requests</h3>
+        <p>
+          Use the same email channel for privacy questions, support routing, and closed-beta access
+          requests.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Helpful links</p>
+        <h2>Follow the product guidance before escalating</h2>
+      </div>
+    </div>
+
+    <div class="stacked-actions">
+      <a class="button" href={createMailtoHref("CategoryFix support request")}>Email support</a>
+      <a class="button button-secondary" href={withBase("/docs")}>Read merchant docs</a>
+      <a class="button button-secondary" href={withBase("/privacy")}>Review privacy summary</a>
+      <a class="button button-secondary" href={betaMailtoHref}>Request beta access</a>
+    </div>
+  </section>
+</MarketingLayout>

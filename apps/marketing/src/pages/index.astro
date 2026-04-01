@@ -1,0 +1,148 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { betaMailtoHref, siteConfig, withBase } from "../content/site.js";
+---
+
+<MarketingLayout
+  title="Category review that stays explainable"
+  description="CategoryFix helps Shopify teams review category recommendations with clear reasons, explicit preview, and rollback-ready changes."
+>
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Trust-first closed beta</p>
+      <h1>Review Shopify category recommendations without blind automation.</h1>
+      <p>
+        CategoryFix scans your catalog, highlights missing or likely-wrong Shopify product
+        categories, and keeps every recommendation grounded in the product fields that triggered
+        it. <span class="highlight">Preview every category change before anything is written.</span>
+      </p>
+      <div class="hero-actions">
+        <a class="button" href={betaMailtoHref}>Request beta access</a>
+        <a class="button button-secondary" href={withBase("/how-it-works")}>See the workflow</a>
+      </div>
+    </div>
+
+    <div class="hero-proof">
+      <article class="proof-card">
+        <strong>Deterministic first</strong>
+        <p>
+          The primary workflow is rule-based and explainable. CategoryFix shows the product facts
+          and matched signals behind each recommendation.
+        </p>
+      </article>
+      <article class="proof-card">
+        <strong>Preview before write</strong>
+        <p>
+          No category write happens automatically. Merchants review counts, inspect reasoning, and
+          explicitly confirm changes before apply jobs run.
+        </p>
+      </article>
+      <article class="proof-card">
+        <strong>Rollback stays visible</strong>
+        <p>
+          Undo and rollback stay available after apply jobs complete, so corrective action remains
+          part of the product flow instead of a support-only fallback.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">What the beta covers</p>
+        <h2>Built for careful category correction, not autopilot merchandising.</h2>
+      </div>
+    </div>
+
+    <div class="section-grid">
+      <article class="card">
+        <p class="kicker">Scan</p>
+        <h3>Find high-signal category gaps</h3>
+        <p>
+          CategoryFix evaluates title, product type, vendor, tags, collections, and existing
+          category state to flag products that look missing or mismatched.
+        </p>
+      </article>
+      <article class="card">
+        <p class="kicker">Review</p>
+        <h3>See why a recommendation exists</h3>
+        <p>
+          Review screens surface the basis facts, confidence labels, and the number of affected
+          products before you approve anything.
+        </p>
+      </article>
+      <article class="card">
+        <p class="kicker">Apply</p>
+        <h3>Write only after an explicit decision</h3>
+        <p>
+          Safe deterministic findings can be selected in bulk, while review-required and
+          AI-assisted outcomes stay opt-in and visibly distinct.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">How AI appears</p>
+        <h2>AI-assisted suggestions stay optional and advisory.</h2>
+      </div>
+    </div>
+
+    <div class="docs-grid">
+      <article>
+        <h3>Only after no-safe deterministic results</h3>
+        <p>
+          Optional AI assistance is reserved for products where the deterministic engine cannot make
+          a safe recommendation. It is supporting context, not platform truth.
+        </p>
+      </article>
+      <article>
+        <h3>Never part of default bulk apply</h3>
+        <p>
+          AI-assisted suggestions are visually distinct and excluded from default bulk apply flows.
+          Merchants must choose them intentionally.
+        </p>
+      </article>
+    </div>
+
+    <div class="callout">
+      <p>
+        Current public beta messaging stays aligned with what is already implemented in the embedded
+        app: deterministic recommendations, explainable review, explicit apply, rollback, and
+        optional AI fallback support.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Explore the surface</p>
+        <h2>Start with the product story, then move into docs and support.</h2>
+      </div>
+    </div>
+
+    <div class="support-grid">
+      <article class="card">
+        <h3>Product</h3>
+        <p>Understand the current beta capabilities and what CategoryFix intentionally does not claim.</p>
+        <a href={withBase("/product")}>Read the product explainer</a>
+      </article>
+      <article class="card">
+        <h3>Docs</h3>
+        <p>See a merchant-facing walkthrough of scan, review, apply, rollback, and support expectations.</p>
+        <a href={withBase("/docs")}>Open the docs page</a>
+      </article>
+      <article class="card">
+        <h3>Support</h3>
+        <p>
+          Reach the beta support contact at <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
+        </p>
+        <a href={withBase("/support")}>Review support details</a>
+      </article>
+    </div>
+  </section>
+</MarketingLayout>

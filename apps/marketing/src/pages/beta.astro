@@ -1,0 +1,38 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { betaMailtoHref, siteConfig } from "../content/site.js";
+---
+
+<MarketingLayout
+  title="Closed beta"
+  description="Request CategoryFix closed-beta access through the current email-based intake flow."
+>
+  <section class="page-hero">
+    <p class="eyebrow">Closed beta</p>
+    <h1>Start with an email, not a form stack.</h1>
+    <p>
+      Phase 8 keeps the beta intake intentionally lightweight. There is no first-party signup
+      backend here yet. If you want to evaluate CategoryFix, send a short note to{" "}
+      <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
+    </p>
+    <div class="stacked-actions">
+      <a class="button" href={betaMailtoHref}>Request beta access</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">What to include</p>
+        <h2>Keep the beta conversation grounded in the current product</h2>
+      </div>
+    </div>
+
+    <ul class="plain-list">
+      <li>Your Shopify store or catalog context</li>
+      <li>Why category cleanup matters to your team right now</li>
+      <li>Whether deterministic review, rollback, or AI-assisted fallback support is the bigger need</li>
+      <li>Any timeline or operational constraints for the beta</li>
+    </ul>
+  </section>
+</MarketingLayout>

@@ -8,13 +8,16 @@
     "pnpm": ">=10.32.1"
   },
   "scripts": {
-    "build": "pnpm --filter @categoryfix/shop-admin build",
+    "build": "pnpm --filter @categoryfix/marketing build && pnpm --filter @categoryfix/shop-admin build",
+    "build:marketing": "pnpm --filter @categoryfix/marketing build",
     "db:generate": "pnpm --filter @categoryfix/db prisma:generate",
     "db:migrate:deploy": "pnpm --filter @categoryfix/db prisma:migrate:deploy",
     "dev": "pnpm --filter @categoryfix/shop-admin dev",
+    "dev:marketing": "pnpm --filter @categoryfix/marketing dev",
     "verify:foundation": "node ./scripts/verify-foundation.mjs",
-    "lint": "pnpm verify:foundation && pnpm --filter @categoryfix/shop-admin lint",
-    "test": "pnpm verify:foundation && pnpm --filter @categoryfix/db prisma:generate && pnpm --filter @categoryfix/shop-admin test",
-    "typecheck": "pnpm --filter @categoryfix/db prisma:generate && pnpm --filter @categoryfix/shop-admin typecheck"
+    "lint": "pnpm verify:foundation && pnpm --filter @categoryfix/shop-admin lint && pnpm --filter @categoryfix/marketing typecheck",
+    "test": "pnpm verify:foundation && pnpm --filter @categoryfix/db prisma:generate && pnpm --filter @categoryfix/shop-admin test && pnpm --filter @categoryfix/marketing test",
+    "test:marketing": "pnpm --filter @categoryfix/marketing test",
+    "typecheck": "pnpm --filter @categoryfix/db prisma:generate && pnpm --filter @categoryfix/shop-admin typecheck && pnpm --filter @categoryfix/marketing typecheck"
   }
 }

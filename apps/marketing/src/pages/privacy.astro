@@ -1,0 +1,66 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { siteConfig } from "../content/site.js";
+---
+
+<MarketingLayout
+  title="Privacy"
+  description="Closed-beta privacy summary for CategoryFix, aligned with the current Shopify app implementation."
+>
+  <section class="page-hero">
+    <p class="eyebrow">Privacy</p>
+    <h1>Privacy wording should stay as narrow as the product behavior.</h1>
+    <p>
+      This privacy summary is tailored to the current closed beta. It describes the data handling
+      implied by the present repository and should be reviewed again before broader launch.
+    </p>
+  </section>
+
+  <div class="legal-panel">
+    <section>
+      <h2>What the app uses</h2>
+      <p>
+        CategoryFix connects to Shopify so it can read product information needed to detect missing
+        or likely-wrong product categories and, when a merchant confirms changes, write approved
+        category updates back to Shopify.
+      </p>
+      <p>
+        Current product behavior includes scan records, recommendation findings, apply jobs,
+        rollback jobs, audit events, and webhook processing data needed to keep the workflow
+        explainable and reversible.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why the data is used</h2>
+      <p>
+        The app uses Shopify product fields such as title, product type, vendor, tags, collections,
+        and existing category state to generate reviewable category recommendations. It also stores
+        operational records so merchants can inspect what changed and roll back approved writes.
+      </p>
+    </section>
+
+    <section>
+      <h2>AI-assisted fallback</h2>
+      <p>
+        AI assistance is optional in the current product. When enabled, it is intended only for
+        deterministic no-safe outcomes and is presented as advisory support rather than definitive
+        platform truth.
+      </p>
+      <p>
+        Because this beta may evolve before wider release, any final production privacy policy
+        should confirm the exact model configuration, data flow, and retention details in use at
+        that time.
+      </p>
+    </section>
+
+    <section>
+      <h2>Support and deletion requests</h2>
+      <p>
+        CategoryFix implements Shopify compliance webhook handling and expects published privacy
+        behavior to stay consistent with those flows. Questions about beta privacy handling can be
+        sent to <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
+      </p>
+    </section>
+  </div>
+</MarketingLayout>

@@ -1,0 +1,87 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+---
+
+<MarketingLayout
+  title="How it works"
+  description="See how CategoryFix moves from scan to review, apply, and rollback without hiding uncertainty."
+>
+  <section class="page-hero">
+    <p class="eyebrow">Workflow</p>
+    <h1>Scan, review, apply, and roll back with the same trust model end to end.</h1>
+    <p>
+      CategoryFix is built around a simple rule: changes should stay explainable before they become
+      scalable. The workflow keeps that principle visible from the first scan through rollback.
+    </p>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">The four-step loop</p>
+        <h2>How merchants work with the product today</h2>
+      </div>
+    </div>
+
+    <div class="steps-grid">
+      <article class="step">
+        <p class="kicker">1. Scan</p>
+        <h3>Run a product scan</h3>
+        <p>
+          Bulk product reads gather the current category state and the catalog signals needed for
+          deterministic matching.
+        </p>
+      </article>
+      <article class="step">
+        <p class="kicker">2. Review</p>
+        <h3>Inspect the reasons</h3>
+        <p>
+          Findings show recommendation basis, confidence labels, and whether the item is safe for
+          default bulk selection or needs extra review.
+        </p>
+      </article>
+      <article class="step">
+        <p class="kicker">3. Apply</p>
+        <h3>Confirm category writes</h3>
+        <p>
+          Apply jobs execute only after explicit merchant confirmation. The workflow focuses on what
+          will change, not just that something can change.
+        </p>
+      </article>
+      <article class="step">
+        <p class="kicker">4. Roll back</p>
+        <h3>Reverse when needed</h3>
+        <p>
+          Rollback jobs use stored evidence from the original change, keeping reversal available
+          inside the product surface.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Edge cases</p>
+        <h2>What happens when the system is not sure</h2>
+      </div>
+    </div>
+
+    <div class="docs-grid">
+      <article>
+        <h3>No safe deterministic recommendation</h3>
+        <p>
+          The product can say exactly that and leave the product unchanged. It does not force a
+          suggestion where the rules cannot defend one.
+        </p>
+      </article>
+      <article>
+        <h3>Optional AI fallback</h3>
+        <p>
+          If AI assistance is enabled, it is used only as supporting context for deterministic
+          no-safe results, never as silent platform truth.
+        </p>
+      </article>
+    </div>
+  </section>
+</MarketingLayout>

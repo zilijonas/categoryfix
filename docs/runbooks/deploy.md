@@ -18,6 +18,26 @@ Document how to deploy the embedded app, worker process, and marketing site safe
 
 - staging to production promotion flow
 
+## Phase 8 marketing preview additions
+
+- Build the public marketing site from `apps/marketing`.
+- Treat GitHub Pages as a preview-only deployment target for the public site. Do not describe it as the production host for `categoryfix.com`.
+- The preview workflow should publish the built `apps/marketing/dist` artifact and expose stable preview URLs for:
+  - `/`
+  - `/product`
+  - `/how-it-works`
+  - `/docs`
+  - `/privacy`
+  - `/terms`
+  - `/support`
+  - `/beta`
+- After preview deployment, verify:
+  - the homepage reflects the trust-first positioning and does not claim autonomous fixing
+  - legal and support URLs load successfully
+  - the support CTA opens an email flow for `support@categoryfix.com`
+  - the product copy mentions preview-before-write, rollback availability, and optional AI-assisted fallback behavior
+- Before production root-domain cutover, move `categoryfix.com` to a non-GitHub-Pages host that fits the roadmap requirement.
+
 ## Phase 5 verification additions
 
 - Run a scan and confirm `/app/scans/:scanRunId` loads accepted findings and apply counts correctly.

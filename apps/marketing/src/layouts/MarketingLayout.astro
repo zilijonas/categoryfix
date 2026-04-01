@@ -1,0 +1,126 @@
+---
+import "../styles/site.css";
+import {
+  betaMailtoHref,
+  createMailtoHref,
+  siteConfig,
+  withBase,
+  type SiteLink,
+} from "../content/site.js";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const currentPath = Astro.url.pathname;
+const pageTitle = `${title} | ${siteConfig.name}`;
+const canonicalUrl = new URL(currentPath, Astro.site ?? siteConfig.productionSiteUrl);
+
+function isActive(pathname: string): boolean {
+  if (pathname === "/") {
+    return currentPath === pathname;
+  }
+
+  return currentPath === pathname || currentPath === `${pathname}/`;
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl.toString()} />
+    <link rel="canonical" href={canonicalUrl.toString()} />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <a class="brand" href={withBase("/")}>
+          <span class="brand-mark">CF</span>
+          <span class="brand-copy">
+            <strong>{siteConfig.name}</strong>
+            <span>Shopify category review, without blind automation.</span>
+          </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Primary">
+          {siteConfig.navLinks.map((link: SiteLink) => (
+            <a
+              class:list={["nav-link", { "is-active": isActive(link.pathname) }]}
+              href={withBase(link.pathname)}
+              aria-current={isActive(link.pathname) ? "page" : undefined}
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <a class="button button-secondary header-cta" href={betaMailtoHref}>
+          Request beta access
+        </a>
+      </header>
+
+      <main>
+        <slot />
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-band">
+          <div>
+            <p class="eyebrow">Closed beta, trust first</p>
+            <h2>Category changes stay reviewable, explainable, and reversible.</h2>
+          </div>
+
+          <div class="footer-actions">
+            <a class="button" href={betaMailtoHref}>Start the beta conversation</a>
+            <a class="button button-secondary" href={siteConfig.appUrl}>Open the embedded app</a>
+          </div>
+        </div>
+
+        <div class="footer-grid">
+          <div>
+            <strong>{siteConfig.name}</strong>
+            <p>
+              Public marketing and compliance surface for a Shopify category review workflow with
+              preview-before-write safeguards.
+            </p>
+          </div>
+
+          <div>
+            <strong>Explore</strong>
+            <div class="footer-links">
+              {siteConfig.navLinks.map((link: SiteLink) => (
+                <a href={withBase(link.pathname)}>{link.label}</a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <strong>Legal</strong>
+            <div class="footer-links">
+              {siteConfig.footerLinks.map((link: SiteLink) => (
+                <a href={withBase(link.pathname)}>{link.label}</a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <strong>Support</strong>
+            <div class="footer-links">
+              <a href={createMailtoHref("CategoryFix support request")}>{siteConfig.supportEmail}</a>
+              <a href={siteConfig.appUrl}>Embedded app</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

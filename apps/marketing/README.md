@@ -1,8 +1,8 @@
 # `apps/marketing`
 
-This workspace is reserved for the static marketing site.
+Static Astro marketing site for CategoryFix.
 
-Planned responsibilities:
+Current responsibilities:
 
 - public marketing pages
 - SEO-focused content
@@ -14,3 +14,5 @@ Implementation notes:
 - Use Astro
 - Deploy separately from the embedded app
 - Keep product claims aligned with actual implemented behavior
+- Treat GitHub Pages as a preview-only deployment target
+- Keep support contact and legal operator details as explicit placeholders until finalized

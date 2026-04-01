@@ -30,3 +30,12 @@ jobs:
 
       - name: Verify foundation
         run: pnpm verify:foundation
+
+      - name: Typecheck marketing site
+        run: pnpm --filter @categoryfix/marketing typecheck
+
+      - name: Test marketing site content and links
+        run: pnpm --filter @categoryfix/marketing test
+
+      - name: Build marketing site
+        run: pnpm --filter @categoryfix/marketing build

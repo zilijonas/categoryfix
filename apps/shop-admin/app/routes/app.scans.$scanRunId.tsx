@@ -3,6 +3,15 @@ import { Form, Link, useFetcher, useLoaderData, useNavigation, useRevalidator } 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import type { ApplyJobDetail, RollbackJobDetail } from "@categoryfix/db";
 import {
+  AdminPage,
+  AdminPanel,
+  Field,
+  InlineMessage,
+  MetricGrid,
+  StatusBadge,
+  buttonClassName,
+} from "../components/admin-ui.js";
+import {
   createReviewMutationResponse,
   createScanReviewResponse,
   type ScanReviewRoutePayload,
@@ -123,22 +132,22 @@ function statusLabel(status: string) {
   }
 }
 
-function renderStatusTone(status: string) {
+function renderStatusTone(status: string): "success" | "danger" | "warning" | "neutral" {
   switch (status) {
     case "SUCCEEDED":
     case "ACCEPTED":
     case "APPLIED":
-      return "#1f7a1f";
+      return "success";
     case "FAILED":
     case "DISMISSED":
-      return "#8a1f17";
+      return "danger";
     case "PARTIALLY_SUCCEEDED":
-      return "#7a4f00";
+      return "warning";
     case "RUNNING":
     case "PENDING":
-      return "#6f4e00";
+      return "warning";
     default:
-      return "#444";
+      return "neutral";
   }
 }
 
@@ -366,158 +375,154 @@ export default function ScanReviewRoute() {
   const drawerCloseSearch = buildSearch(data.filters, data.findingsPage.page);
   const latestApplyJob = applyJob;
   const latestRollbackJob = rollbackJob;
+  const reviewStatusItems = [
+    { label: "Scan", value: data.scanRun.id },
+    {
+      label: "Trigger",
+      value: data.scanRun.trigger === "WEBHOOK" ? "Webhook refresh" : "Manual scan",
+    },
+    {
+      label: "Status",
+      value: <StatusBadge tone={renderStatusTone(data.scanRun.status)}>{data.scanRun.status}</StatusBadge>,
+      tone: renderStatusTone(data.scanRun.status),
+    },
+    { label: "Started", value: formatTimestamp(data.scanRun.startedAt) },
+    { label: "Completed", value: formatTimestamp(data.scanRun.completedAt) },
+  ] as const;
+  const freshnessItems = [
+    {
+      label: "Auto-rescan pending",
+      value: data.freshness.autoRescanPending ? "Yes" : "No",
+      tone: data.freshness.autoRescanPending ? "warning" : "neutral",
+    },
+    {
+      label: "Recent product webhook deliveries",
+      value: data.freshness.recentWebhookDeliveryCount,
+    },
+    {
+      label: "Latest webhook scan",
+      value: data.freshness.lastWebhookScan
+        ? `${data.freshness.lastWebhookScan.status} at ${formatTimestamp(
+            data.freshness.lastWebhookScan.completedAt ??
+              data.freshness.lastWebhookScan.startedAt,
+          )}`
+        : "No webhook-triggered scan yet",
+    },
+  ] as const;
+  const previewItems = [
+    { label: "Accepted for future apply", value: data.findingsPage.previewCounts.readyToApply },
+    { label: "Open findings", value: data.findingsPage.previewCounts.open },
+    {
+      label: "Safe deterministic still open",
+      value: data.findingsPage.previewCounts.safeDeterministicOpen,
+    },
+    {
+      label: "Review required still open",
+      value: data.findingsPage.previewCounts.reviewRequiredOpen,
+    },
+    { label: "AI-assisted still open", value: data.findingsPage.previewCounts.aiAssistedOpen },
+    { label: "Already applied", value: data.findingsPage.previewCounts.applied },
+    { label: "Rolled back", value: data.findingsPage.previewCounts.rolledBack },
+    { label: "No safe suggestion", value: data.findingsPage.previewCounts.noSafeSuggestion },
+    { label: "Dismissed", value: data.findingsPage.previewCounts.dismissed },
+  ] as const;
+  const applyItems = [
+    {
+      label: "Safe accepted by default",
+      value: data.findingsPage.previewCounts.safeDeterministicAccepted,
+    },
+    {
+      label: "Review required accepted",
+      value: data.findingsPage.previewCounts.reviewRequiredAccepted,
+    },
+    {
+      label: "AI-assisted accepted",
+      value: data.findingsPage.previewCounts.aiAssistedAccepted,
+    },
+    {
+      label: "Accepted selected on this page",
+      value: acceptedSelectedIds.length,
+    },
+  ] as const;
 
   return (
-    <s-page heading="Scan review">
-      <s-section heading="Review status">
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          <p style={{ margin: 0 }}>
-            Scan: <strong>{data.scanRun.id}</strong>
-          </p>
-          <p style={{ margin: 0 }}>
-            Trigger: {data.scanRun.trigger === "WEBHOOK" ? "Webhook refresh" : "Manual scan"}
-          </p>
-          <p style={{ margin: 0 }}>
-            Status:{" "}
-            <strong style={{ color: renderStatusTone(data.scanRun.status) }}>
-              {data.scanRun.status}
-            </strong>
-          </p>
-          <p style={{ margin: 0 }}>Started: {formatTimestamp(data.scanRun.startedAt)}</p>
-          <p style={{ margin: 0 }}>Completed: {formatTimestamp(data.scanRun.completedAt)}</p>
-          {data.scanRun.failureSummary ? (
-            <p style={{ margin: 0, color: "#8a1f17" }}>
-              Failure: {data.scanRun.failureSummary}
-            </p>
-          ) : null}
-          {data.readOnly ? (
-            <p style={{ margin: 0, color: "#6f4e00" }}>
-              Review actions are disabled while this scan is still running.
-            </p>
-          ) : null}
-        </div>
-      </s-section>
+    <AdminPage
+      eyebrow="Review status"
+      title="Scan review"
+      description="Review scan outcomes, filter findings, and keep apply and rollback decisions visible from the same trust-preserving surface."
+    >
+      <AdminPanel title="Review status" tone="forest">
+        <MetricGrid columns={4} items={reviewStatusItems} />
+        {data.scanRun.failureSummary ? (
+          <InlineMessage tone="danger">Failure: {data.scanRun.failureSummary}</InlineMessage>
+        ) : null}
+        {data.readOnly ? (
+          <InlineMessage tone="warning">
+            Review actions are disabled while this scan is still running.
+          </InlineMessage>
+        ) : null}
+      </AdminPanel>
 
-      <s-section heading="Freshness status">
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          <p style={{ margin: 0 }}>
-            Auto-rescan pending: {data.freshness.autoRescanPending ? "Yes" : "No"}
-          </p>
-          <p style={{ margin: 0 }}>
-            Recent product webhook deliveries: {data.freshness.recentWebhookDeliveryCount}
-          </p>
-          <p style={{ margin: 0 }}>
-            Latest webhook scan:{" "}
-            {data.freshness.lastWebhookScan
-              ? `${data.freshness.lastWebhookScan.status} at ${formatTimestamp(
-                  data.freshness.lastWebhookScan.completedAt ??
-                    data.freshness.lastWebhookScan.startedAt,
-                )}`
-              : "No webhook-triggered scan yet"}
-          </p>
-          {data.freshness.latestIssue ? (
-            <>
-              <p style={{ margin: 0, color: "#8a1f17" }}>
-                Latest freshness issue: {data.freshness.latestIssue.status}
-              </p>
-              <p style={{ margin: 0, color: "#8a1f17" }}>
-                {data.freshness.latestIssue.lastError ??
-                  "CategoryFix could not finish a freshness job."}
-              </p>
-              <p style={{ margin: 0 }}>Recovery: run a manual scan.</p>
-            </>
-          ) : null}
-        </div>
-      </s-section>
+      <AdminPanel title="Freshness status">
+        <MetricGrid columns={3} items={freshnessItems} />
+        {data.freshness.latestIssue ? (
+          <InlineMessage tone="danger">
+            <p>Latest freshness issue: {data.freshness.latestIssue.status}</p>
+            <p>
+              {data.freshness.latestIssue.lastError ??
+                "CategoryFix could not finish a freshness job."}
+            </p>
+            <p>Recovery: run a manual scan.</p>
+          </InlineMessage>
+        ) : null}
+      </AdminPanel>
 
-      <s-section heading="Future apply preview">
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          <p style={{ margin: 0 }}>
-            Accepted for future apply: {data.findingsPage.previewCounts.readyToApply}
-          </p>
-          <p style={{ margin: 0 }}>Open findings: {data.findingsPage.previewCounts.open}</p>
-          <p style={{ margin: 0 }}>
-            Safe deterministic still open: {data.findingsPage.previewCounts.safeDeterministicOpen}
-          </p>
-          <p style={{ margin: 0 }}>
-            Review required still open: {data.findingsPage.previewCounts.reviewRequiredOpen}
-          </p>
-          <p style={{ margin: 0 }}>
-            AI-assisted still open: {data.findingsPage.previewCounts.aiAssistedOpen}
-          </p>
-          <p style={{ margin: 0 }}>
-            Already applied: {data.findingsPage.previewCounts.applied}
-          </p>
-          <p style={{ margin: 0 }}>
-            Rolled back: {data.findingsPage.previewCounts.rolledBack}
-          </p>
-          <p style={{ margin: 0 }}>
-            No safe suggestion: {data.findingsPage.previewCounts.noSafeSuggestion}
-          </p>
-          <p style={{ margin: 0 }}>Dismissed: {data.findingsPage.previewCounts.dismissed}</p>
-        </div>
-      </s-section>
+      <AdminPanel title="Future apply preview">
+        <MetricGrid columns={4} items={previewItems} />
+      </AdminPanel>
 
-      <s-section heading="Apply changes">
-        <div style={{ display: "grid", gap: "0.75rem" }}>
-          <p style={{ margin: 0 }}>
-            Default apply includes only accepted exact and strong matches. Accepted
-            review-required and AI-assisted findings stay opt-in and must be selected
-            explicitly.
-          </p>
-          <div style={{ display: "grid", gap: "0.35rem" }}>
-            <p style={{ margin: 0 }}>
-              Safe accepted by default: {data.findingsPage.previewCounts.safeDeterministicAccepted}
-            </p>
-            <p style={{ margin: 0 }}>
-              Review required accepted: {data.findingsPage.previewCounts.reviewRequiredAccepted}
-            </p>
-            <p style={{ margin: 0 }}>
-              AI-assisted accepted: {data.findingsPage.previewCounts.aiAssistedAccepted}
-            </p>
-            <p style={{ margin: 0 }}>
-              Accepted selected on this page: {acceptedSelectedIds.length}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <button
-              disabled={
-                data.readOnly ||
-                pendingOperation !== null ||
-                data.findingsPage.previewCounts.safeDeterministicAccepted === 0
-              }
-              onClick={() => {
-                void runApplyJob();
-              }}
-              type="button"
-            >
-              {pendingOperation === "apply-default"
-                ? "Applying safe accepted..."
-                : "Apply safe accepted"}
-            </button>
-            <button
-              disabled={data.readOnly || pendingOperation !== null || acceptedSelectedIds.length === 0}
-              onClick={() => {
-                void runApplyJob(acceptedSelectedIds);
-              }}
-              type="button"
-            >
-              {pendingOperation === "apply-selected"
-                ? "Applying selected..."
-                : "Apply selected accepted"}
-            </button>
-          </div>
-          {operationError ? (
-            <p style={{ margin: 0, color: "#8a1f17" }}>{operationError}</p>
-          ) : null}
+      <AdminPanel
+        title="Apply changes"
+        subtitle="Default apply includes only accepted exact and strong matches. Accepted review-required and AI-assisted findings stay opt-in and must be selected explicitly."
+      >
+        <MetricGrid columns={4} items={applyItems} />
+        <div className="admin-inline-actions">
+          <button
+            className={buttonClassName()}
+            disabled={
+              data.readOnly ||
+              pendingOperation !== null ||
+              data.findingsPage.previewCounts.safeDeterministicAccepted === 0
+            }
+            onClick={() => {
+              void runApplyJob();
+            }}
+            type="button"
+          >
+            {pendingOperation === "apply-default"
+              ? "Applying safe accepted..."
+              : "Apply safe accepted"}
+          </button>
+          <button
+            className={buttonClassName("secondary")}
+            disabled={data.readOnly || pendingOperation !== null || acceptedSelectedIds.length === 0}
+            onClick={() => {
+              void runApplyJob(acceptedSelectedIds);
+            }}
+            type="button"
+          >
+            {pendingOperation === "apply-selected"
+              ? "Applying selected..."
+              : "Apply selected accepted"}
+          </button>
         </div>
-      </s-section>
+        {operationError ? <InlineMessage tone="danger">{operationError}</InlineMessage> : null}
+      </AdminPanel>
 
-      <s-section heading="Filters">
-        <Form method="get" style={{ display: "grid", gap: "0.75rem" }}>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <label style={{ display: "grid", gap: "0.25rem" }}>
-              <span>Status</span>
+      <AdminPanel title="Filters">
+        <Form className="admin-form-grid" method="get">
+          <div className="admin-field-grid">
+            <Field label="Status">
               <select defaultValue={data.filters.status} name="status">
                 <option value="ALL">All</option>
                 <option value="OPEN">Open</option>
@@ -526,9 +531,8 @@ export default function ScanReviewRoute() {
                 <option value="APPLIED">Applied</option>
                 <option value="ROLLED_BACK">Rolled back</option>
               </select>
-            </label>
-            <label style={{ display: "grid", gap: "0.25rem" }}>
-              <span>Confidence</span>
+            </Field>
+            <Field label="Confidence">
               <select defaultValue={data.filters.confidence} name="confidence">
                 <option value="ALL">All</option>
                 <option value="EXACT">Exact</option>
@@ -536,25 +540,31 @@ export default function ScanReviewRoute() {
                 <option value="REVIEW_REQUIRED">Review required</option>
                 <option value="NO_SAFE_SUGGESTION">No safe suggestion</option>
               </select>
-            </label>
-            <label style={{ display: "grid", gap: "0.25rem", minWidth: "16rem" }}>
-              <span>Product title</span>
+            </Field>
+            <Field label="Product title">
               <input defaultValue={data.filters.query} name="query" type="search" />
-            </label>
+            </Field>
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <button type="submit">Apply filters</button>
-            <Link to={`/app/scans/${data.scanRun.id}`}>Reset</Link>
-            <Link to="/app">Back to dashboard</Link>
+          <div className="admin-inline-actions">
+            <button className={buttonClassName()} type="submit">
+              Apply filters
+            </button>
+            <Link className={buttonClassName("ghost")} to={`/app/scans/${data.scanRun.id}`}>
+              Reset
+            </Link>
+            <Link className={buttonClassName("secondary")} to="/app">
+              Back to dashboard
+            </Link>
           </div>
         </Form>
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Review actions">
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+      <AdminPanel title="Review actions">
+        <div className="admin-inline-actions">
           <reviewAction.Form method="post">
             <input name="intent" type="hidden" value="accept_safe_deterministic" />
             <button
+              className={buttonClassName()}
               disabled={
                 data.readOnly ||
                 data.findingsPage.previewCounts.safeDeterministicOpen === 0 ||
@@ -572,6 +582,7 @@ export default function ScanReviewRoute() {
               <input key={id} name="findingId" type="hidden" value={id} />
             ))}
             <button
+              className={buttonClassName("secondary")}
               disabled={data.readOnly || !selectedIds.length || reviewAction.state !== "idle"}
               type="submit"
             >
@@ -585,6 +596,7 @@ export default function ScanReviewRoute() {
               <input key={id} name="findingId" type="hidden" value={id} />
             ))}
             <button
+              className={buttonClassName("ghost")}
               disabled={data.readOnly || !selectedIds.length || reviewAction.state !== "idle"}
               type="submit"
             >
@@ -592,20 +604,19 @@ export default function ScanReviewRoute() {
             </button>
           </reviewAction.Form>
         </div>
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Findings">
+      <AdminPanel title="Findings">
         {!data.findingsPage.items.length ? (
-          <p style={{ margin: 0 }}>
-            No findings match the current filters. Adjust the filters or review a
-            different scan run.
+          <p className="admin-empty">
+            No findings match the current filters. Adjust the filters or review a different scan run.
           </p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="admin-table-shell">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  <th align="left">
+                  <th>
                     <input
                       aria-label="Select all visible findings"
                       checked={allSelected}
@@ -620,12 +631,12 @@ export default function ScanReviewRoute() {
                       type="checkbox"
                     />
                   </th>
-                  <th align="left">Product</th>
-                  <th align="left">Current category</th>
-                  <th align="left">Suggested category</th>
-                  <th align="left">Confidence</th>
-                  <th align="left">Status</th>
-                  <th align="left">Details</th>
+                  <th>Product</th>
+                  <th>Current category</th>
+                  <th>Suggested category</th>
+                  <th>Confidence</th>
+                  <th>Status</th>
+                  <th>Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -653,21 +664,23 @@ export default function ScanReviewRoute() {
                         />
                       </td>
                       <td>
-                        <div style={{ display: "grid", gap: "0.25rem" }}>
+                        <div className="admin-stack">
                           <strong>{finding.productTitle}</strong>
-                          <span>{finding.productHandle ? `/${finding.productHandle}` : "No handle"}</span>
+                          <span className="admin-soft">
+                            {finding.productHandle ? `/${finding.productHandle}` : "No handle"}
+                          </span>
                           {finding.assistance ? (
-                            <span style={{ color: "#6f4e00", fontSize: "0.9rem" }}>
-                              {finding.assistance.label}
-                            </span>
+                            <StatusBadge tone="accent">{finding.assistance.label}</StatusBadge>
                           ) : null}
                         </div>
                       </td>
                       <td>{finding.currentCategory?.fullPath ?? "No category set"}</td>
                       <td>{finding.recommendedCategory?.fullPath ?? "No safe suggestion"}</td>
                       <td>{confidenceLabel(finding.confidence)}</td>
-                      <td style={{ color: renderStatusTone(finding.status) }}>
-                        {statusLabel(finding.status)}
+                      <td>
+                        <StatusBadge tone={renderStatusTone(finding.status)}>
+                          {statusLabel(finding.status)}
+                        </StatusBadge>
                       </td>
                       <td>
                         <Link to={detailSearch}>Inspect basis</Link>
@@ -680,8 +693,8 @@ export default function ScanReviewRoute() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
-          <span>
+        <div className="admin-inline-actions">
+          <span className="admin-muted">
             Page {data.findingsPage.page} of {data.findingsPage.totalPages}
           </span>
           {data.findingsPage.page > 1 ? (
@@ -694,34 +707,40 @@ export default function ScanReviewRoute() {
               Next
             </Link>
           ) : null}
-          {navigation.state !== "idle" ? <span>Loading…</span> : null}
+          {navigation.state !== "idle" ? <span className="admin-muted">Loading...</span> : null}
         </div>
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Latest apply job">
+      <AdminPanel title="Latest apply job">
         {latestApplyJob ? (
-          <div style={{ display: "grid", gap: "0.75rem" }}>
-            <div style={{ display: "grid", gap: "0.35rem" }}>
-              <p style={{ margin: 0 }}>
-                Apply job: <strong>{latestApplyJob.id}</strong>
-              </p>
-              <p style={{ margin: 0 }}>
-                Status:{" "}
-                <strong style={{ color: renderStatusTone(latestApplyJob.status) }}>
-                  {statusLabel(latestApplyJob.status)}
-                </strong>
-              </p>
-              <p style={{ margin: 0 }}>
-                Applied: {latestApplyJob.appliedCount} of {latestApplyJob.selectedFindingCount}
-              </p>
-              <p style={{ margin: 0 }}>Failed: {latestApplyJob.failedCount}</p>
-              <p style={{ margin: 0 }}>Started: {formatTimestamp(latestApplyJob.startedAt)}</p>
-              <p style={{ margin: 0 }}>Completed: {formatTimestamp(latestApplyJob.completedAt)}</p>
-            </div>
+          <div className="admin-stack">
+            <MetricGrid
+              columns={4}
+              items={[
+                { label: "Apply job", value: latestApplyJob.id },
+                {
+                  label: "Status",
+                  value: (
+                    <StatusBadge tone={renderStatusTone(latestApplyJob.status)}>
+                      {statusLabel(latestApplyJob.status)}
+                    </StatusBadge>
+                  ),
+                  tone: renderStatusTone(latestApplyJob.status),
+                },
+                {
+                  label: "Applied",
+                  value: `${latestApplyJob.appliedCount} of ${latestApplyJob.selectedFindingCount}`,
+                },
+                { label: "Failed", value: latestApplyJob.failedCount },
+                { label: "Started", value: formatTimestamp(latestApplyJob.startedAt) },
+                { label: "Completed", value: formatTimestamp(latestApplyJob.completedAt) },
+              ]}
+            />
 
             {latestApplyJob.rollbackEligibleCount > 0 ? (
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <div className="admin-inline-actions">
                 <button
+                  className={buttonClassName("secondary")}
                   disabled={pendingOperation !== null}
                   onClick={() => {
                     void runRollbackJob(latestApplyJob.id);
@@ -735,15 +754,15 @@ export default function ScanReviewRoute() {
               </div>
             ) : null}
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div className="admin-table-shell">
+              <table className="admin-table">
                 <thead>
                   <tr>
-                    <th align="left">Product</th>
-                    <th align="left">Before</th>
-                    <th align="left">After</th>
-                    <th align="left">Status</th>
-                    <th align="left">Error</th>
+                    <th>Product</th>
+                    <th>Before</th>
+                    <th>After</th>
+                    <th>Status</th>
+                    <th>Error</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -752,8 +771,10 @@ export default function ScanReviewRoute() {
                       <td>{item.productTitle ?? item.productId}</td>
                       <td>{item.before.category?.fullPath ?? "No category set"}</td>
                       <td>{item.after.category?.fullPath ?? "Clear category"}</td>
-                      <td style={{ color: renderStatusTone(item.status) }}>
-                        {statusLabel(item.status)}
+                      <td>
+                        <StatusBadge tone={renderStatusTone(item.status)}>
+                          {statusLabel(item.status)}
+                        </StatusBadge>
                       </td>
                       <td>{item.errorMessage ?? "No error"}</td>
                     </tr>
@@ -763,40 +784,43 @@ export default function ScanReviewRoute() {
             </div>
           </div>
         ) : (
-          <p style={{ margin: 0 }}>
-            No apply jobs have run yet for this shop.
-          </p>
+          <p className="admin-empty">No apply jobs have run yet for this shop.</p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Latest rollback job">
+      <AdminPanel title="Latest rollback job">
         {latestRollbackJob ? (
-          <div style={{ display: "grid", gap: "0.75rem" }}>
-            <div style={{ display: "grid", gap: "0.35rem" }}>
-              <p style={{ margin: 0 }}>
-                Rollback job: <strong>{latestRollbackJob.id}</strong>
-              </p>
-              <p style={{ margin: 0 }}>
-                Status:{" "}
-                <strong style={{ color: renderStatusTone(latestRollbackJob.status) }}>
-                  {statusLabel(latestRollbackJob.status)}
-                </strong>
-              </p>
-              <p style={{ margin: 0 }}>
-                Rolled back: {latestRollbackJob.rolledBackCount} of {latestRollbackJob.selectedItemCount}
-              </p>
-              <p style={{ margin: 0 }}>Failed: {latestRollbackJob.failedCount}</p>
-            </div>
+          <div className="admin-stack">
+            <MetricGrid
+              columns={4}
+              items={[
+                { label: "Rollback job", value: latestRollbackJob.id },
+                {
+                  label: "Status",
+                  value: (
+                    <StatusBadge tone={renderStatusTone(latestRollbackJob.status)}>
+                      {statusLabel(latestRollbackJob.status)}
+                    </StatusBadge>
+                  ),
+                  tone: renderStatusTone(latestRollbackJob.status),
+                },
+                {
+                  label: "Rolled back",
+                  value: `${latestRollbackJob.rolledBackCount} of ${latestRollbackJob.selectedItemCount}`,
+                },
+                { label: "Failed", value: latestRollbackJob.failedCount },
+              ]}
+            />
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div className="admin-table-shell">
+              <table className="admin-table">
                 <thead>
                   <tr>
-                    <th align="left">Product</th>
-                    <th align="left">Current</th>
-                    <th align="left">Restore to</th>
-                    <th align="left">Status</th>
-                    <th align="left">Error</th>
+                    <th>Product</th>
+                    <th>Current</th>
+                    <th>Restore to</th>
+                    <th>Status</th>
+                    <th>Error</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -805,8 +829,10 @@ export default function ScanReviewRoute() {
                       <td>{item.productTitle ?? item.productId}</td>
                       <td>{item.before.category?.fullPath ?? "No category set"}</td>
                       <td>{item.after.category?.fullPath ?? "Clear category"}</td>
-                      <td style={{ color: renderStatusTone(item.status) }}>
-                        {statusLabel(item.status)}
+                      <td>
+                        <StatusBadge tone={renderStatusTone(item.status)}>
+                          {statusLabel(item.status)}
+                        </StatusBadge>
                       </td>
                       <td>{item.errorMessage ?? "No error"}</td>
                     </tr>
@@ -816,36 +842,39 @@ export default function ScanReviewRoute() {
             </div>
           </div>
         ) : (
-          <p style={{ margin: 0 }}>
-            No rollback job has run in this browser session yet.
-          </p>
+          <p className="admin-empty">No rollback job has run in this browser session yet.</p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Recent apply jobs">
+      <AdminPanel title="Recent apply jobs">
         {data.applyJobs.length ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="admin-table-shell">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  <th align="left">Job</th>
-                  <th align="left">Status</th>
-                  <th align="right">Applied</th>
-                  <th align="right">Failed</th>
-                  <th align="left">Completed</th>
-                  <th align="left">Undo</th>
+                  <th>Job</th>
+                  <th>Status</th>
+                  <th>Applied</th>
+                  <th>Failed</th>
+                  <th>Completed</th>
+                  <th>Undo</th>
                 </tr>
               </thead>
               <tbody>
                 {data.applyJobs.map((job) => (
                   <tr key={job.id}>
                     <td>{job.id}</td>
-                    <td style={{ color: renderStatusTone(job.status) }}>{statusLabel(job.status)}</td>
-                    <td align="right">{job.appliedCount}</td>
-                    <td align="right">{job.failedCount}</td>
+                    <td>
+                      <StatusBadge tone={renderStatusTone(job.status)}>
+                        {statusLabel(job.status)}
+                      </StatusBadge>
+                    </td>
+                    <td>{job.appliedCount}</td>
+                    <td>{job.failedCount}</td>
                     <td>{formatTimestamp(job.completedAt)}</td>
                     <td>
                       <button
+                        className={buttonClassName("ghost")}
                         disabled={job.rollbackEligibleCount === 0 || pendingOperation !== null}
                         onClick={() => {
                           void runRollbackJob(job.id);
@@ -861,30 +890,34 @@ export default function ScanReviewRoute() {
             </table>
           </div>
         ) : (
-          <p style={{ margin: 0 }}>No apply jobs recorded yet.</p>
+          <p className="admin-empty">No apply jobs recorded yet.</p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Recent rollback jobs">
+      <AdminPanel title="Recent rollback jobs">
         {data.rollbackJobs.length ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="admin-table-shell">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  <th align="left">Job</th>
-                  <th align="left">Status</th>
-                  <th align="right">Rolled back</th>
-                  <th align="right">Failed</th>
-                  <th align="left">Completed</th>
+                  <th>Job</th>
+                  <th>Status</th>
+                  <th>Rolled back</th>
+                  <th>Failed</th>
+                  <th>Completed</th>
                 </tr>
               </thead>
               <tbody>
                 {data.rollbackJobs.map((job) => (
                   <tr key={job.id}>
                     <td>{job.id}</td>
-                    <td style={{ color: renderStatusTone(job.status) }}>{statusLabel(job.status)}</td>
-                    <td align="right">{job.rolledBackCount}</td>
-                    <td align="right">{job.failedCount}</td>
+                    <td>
+                      <StatusBadge tone={renderStatusTone(job.status)}>
+                        {statusLabel(job.status)}
+                      </StatusBadge>
+                    </td>
+                    <td>{job.rolledBackCount}</td>
+                    <td>{job.failedCount}</td>
                     <td>{formatTimestamp(job.completedAt)}</td>
                   </tr>
                 ))}
@@ -892,21 +925,21 @@ export default function ScanReviewRoute() {
             </table>
           </div>
         ) : (
-          <p style={{ margin: 0 }}>No rollback jobs recorded yet.</p>
+          <p className="admin-empty">No rollback jobs recorded yet.</p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Recent freshness jobs">
+      <AdminPanel title="Recent freshness jobs">
         {data.recentFreshnessJobs.length ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="admin-table-shell">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  <th align="left">Job</th>
-                  <th align="left">Kind</th>
-                  <th align="left">Status</th>
-                  <th align="left">Available</th>
-                  <th align="left">Error</th>
+                  <th>Job</th>
+                  <th>Kind</th>
+                  <th>Status</th>
+                  <th>Available</th>
+                  <th>Error</th>
                 </tr>
               </thead>
               <tbody>
@@ -914,7 +947,11 @@ export default function ScanReviewRoute() {
                   <tr key={job.id}>
                     <td>{job.id}</td>
                     <td>{job.kind}</td>
-                    <td style={{ color: renderStatusTone(job.status) }}>{statusLabel(job.status)}</td>
+                    <td>
+                      <StatusBadge tone={renderStatusTone(job.status)}>
+                        {statusLabel(job.status)}
+                      </StatusBadge>
+                    </td>
                     <td>{formatTimestamp(job.availableAt)}</td>
                     <td>{job.lastError ?? "No error"}</td>
                   </tr>
@@ -923,169 +960,168 @@ export default function ScanReviewRoute() {
             </table>
           </div>
         ) : (
-          <p style={{ margin: 0 }}>No freshness jobs recorded yet.</p>
+          <p className="admin-empty">No freshness jobs recorded yet.</p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Audit timeline">
+      <AdminPanel title="Audit timeline">
         {data.auditTimeline.length ? (
-          <div style={{ display: "grid", gap: "0.75rem" }}>
+          <div className="admin-audit-list">
             {data.auditTimeline.map((event) => (
-              <div
-                key={event.id}
-                style={{ border: "1px solid #d9d9d9", padding: "0.75rem", borderRadius: "0.5rem" }}
-              >
-                <p style={{ margin: 0 }}>
+              <article className="admin-audit-card" key={event.id}>
+                <p>
                   <strong>{formatAuditEvent(event.eventType)}</strong>
                 </p>
-                <p style={{ margin: 0 }}>When: {formatTimestamp(event.createdAt)}</p>
-                <p style={{ margin: 0 }}>Actor: {event.actor}</p>
-                {event.applyJobId ? <p style={{ margin: 0 }}>Apply job: {event.applyJobId}</p> : null}
-                {event.rollbackJobId ? <p style={{ margin: 0 }}>Rollback job: {event.rollbackJobId}</p> : null}
-                {event.reason ? <p style={{ margin: 0 }}>Detail: {event.reason}</p> : null}
-              </div>
+                <p>When: {formatTimestamp(event.createdAt)}</p>
+                <p>Actor: {event.actor}</p>
+                {event.applyJobId ? <p>Apply job: {event.applyJobId}</p> : null}
+                {event.rollbackJobId ? <p>Rollback job: {event.rollbackJobId}</p> : null}
+                {event.reason ? <p>Detail: {event.reason}</p> : null}
+              </article>
             ))}
           </div>
         ) : (
-          <p style={{ margin: 0 }}>No apply or rollback audit events recorded yet.</p>
+          <p className="admin-empty">No apply or rollback audit events recorded yet.</p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Recent runs">
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+      <AdminPanel title="Recent runs">
+        <div className="admin-chip-row">
           {data.scanHistory.map((scan) => (
-            <Link key={scan.id} to={`/app/scans/${scan.id}`}>
-              {scan.id}
+            <Link className="admin-chip" key={scan.id} to={`/app/scans/${scan.id}`}>
+              <strong>{scan.id}</strong>
             </Link>
           ))}
         </div>
-      </s-section>
+      </AdminPanel>
 
       {data.selectedFinding ? (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: "min(30rem, 100%)",
-            height: "100vh",
-            overflowY: "auto",
-            background: "#fff",
-            borderLeft: "1px solid #d9d9d9",
-            boxShadow: "0 0 24px rgba(0, 0, 0, 0.12)",
-            padding: "1rem",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
-            <strong>{data.selectedFinding.productTitle}</strong>
-            <Link to={drawerCloseSearch}>Close</Link>
-          </div>
+        <div className="admin-drawer">
+          <aside className="admin-drawer-surface">
+            <div className="admin-drawer-header">
+              <div className="admin-drawer-title">
+                <strong>{data.selectedFinding.productTitle}</strong>
+                <StatusBadge tone={renderStatusTone(data.selectedFinding.status)}>
+                  {statusLabel(data.selectedFinding.status)}
+                </StatusBadge>
+              </div>
+              <Link className={buttonClassName("ghost")} to={drawerCloseSearch}>
+                Close
+              </Link>
+            </div>
 
-          <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
-            <p style={{ margin: 0 }}>
-              Current category: {data.selectedFinding.currentCategory?.fullPath ?? "No category set"}
-            </p>
-            <p style={{ margin: 0 }}>
-              Suggested category:{" "}
-              {data.selectedFinding.recommendedCategory?.fullPath ?? "No safe suggestion"}
-            </p>
-            <p style={{ margin: 0 }}>
-              Confidence: {confidenceLabel(data.selectedFinding.confidence)}
-            </p>
-            <p style={{ margin: 0 }}>Status: {statusLabel(data.selectedFinding.status)}</p>
-            <p style={{ margin: 0 }}>Basis items: {data.selectedFinding.basisCount}</p>
-            <p style={{ margin: 0 }}>Blockers: {data.selectedFinding.blockerCount}</p>
-            {data.selectedFinding.assistance ? (
-              <>
-                <p style={{ margin: 0, color: "#6f4e00" }}>
-                  {data.selectedFinding.assistance.label}
-                </p>
-                <p style={{ margin: 0 }}>{data.selectedFinding.assistance.disclosure}</p>
-                <p style={{ margin: 0 }}>
-                  AI summary: {data.selectedFinding.assistance.summary}
-                </p>
-              </>
-            ) : null}
-          </div>
+            <div className="admin-drawer-sections">
+              <MetricGrid
+                columns={2}
+                items={[
+                  {
+                    label: "Current category",
+                    value: data.selectedFinding.currentCategory?.fullPath ?? "No category set",
+                  },
+                  {
+                    label: "Suggested category",
+                    value:
+                      data.selectedFinding.recommendedCategory?.fullPath ?? "No safe suggestion",
+                  },
+                  {
+                    label: "Confidence",
+                    value: confidenceLabel(data.selectedFinding.confidence),
+                  },
+                  { label: "Basis items", value: data.selectedFinding.basisCount },
+                  { label: "Blockers", value: data.selectedFinding.blockerCount },
+                ]}
+              />
 
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1rem" }}>
-            <reviewAction.Form method="post">
-              <input name="intent" type="hidden" value="accept_selected" />
-              <input name="findingId" type="hidden" value={data.selectedFinding.id} />
-              <button
-                disabled={
-                  data.readOnly ||
-                  !canAcceptFinding(data.selectedFinding) ||
-                  reviewAction.state !== "idle"
-                }
-                type="submit"
-              >
-                Accept suggestion
-              </button>
-            </reviewAction.Form>
-            <reviewAction.Form method="post">
-              <input name="intent" type="hidden" value="dismiss_selected" />
-              <input name="findingId" type="hidden" value={data.selectedFinding.id} />
-              <button disabled={data.readOnly || reviewAction.state !== "idle"} type="submit">
-                Dismiss suggestion
-              </button>
-            </reviewAction.Form>
-          </div>
+              {data.selectedFinding.assistance ? (
+                <InlineMessage tone="accent">
+                  <p>{data.selectedFinding.assistance.label}</p>
+                  <p>{data.selectedFinding.assistance.disclosure}</p>
+                  <p>AI summary: {data.selectedFinding.assistance.summary}</p>
+                </InlineMessage>
+              ) : null}
 
-          <div style={{ marginTop: "1rem", display: "grid", gap: "0.75rem" }}>
-            <section>
-              <h2 style={{ fontSize: "1rem" }}>Why CategoryFix suggested this</h2>
-              {data.selectedFinding.explanation.basis.length ? (
+              <div className="admin-inline-actions">
+                <reviewAction.Form method="post">
+                  <input name="intent" type="hidden" value="accept_selected" />
+                  <input name="findingId" type="hidden" value={data.selectedFinding.id} />
+                  <button
+                    className={buttonClassName()}
+                    disabled={
+                      data.readOnly ||
+                      !canAcceptFinding(data.selectedFinding) ||
+                      reviewAction.state !== "idle"
+                    }
+                    type="submit"
+                  >
+                    Accept suggestion
+                  </button>
+                </reviewAction.Form>
+                <reviewAction.Form method="post">
+                  <input name="intent" type="hidden" value="dismiss_selected" />
+                  <input name="findingId" type="hidden" value={data.selectedFinding.id} />
+                  <button
+                    className={buttonClassName("secondary")}
+                    disabled={data.readOnly || reviewAction.state !== "idle"}
+                    type="submit"
+                  >
+                    Dismiss suggestion
+                  </button>
+                </reviewAction.Form>
+              </div>
+
+              <section className="admin-detail-section">
+                <h3>Why CategoryFix suggested this</h3>
+                {data.selectedFinding.explanation.basis.length ? (
+                  <ul>
+                    {data.selectedFinding.explanation.basis.map((basis) => (
+                      <li key={`${basis.source}-${basis.matchedTerm}-${basis.rawValue}`}>
+                        {basis.source}: matched "{basis.rawValue}" to "{basis.taxonomyFullPath}" via{" "}
+                        {basis.matchType.toLowerCase().replaceAll("_", " ")} on "{basis.matchedTerm}".
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No positive basis facts were recorded for this finding.</p>
+                )}
+              </section>
+
+              <section className="admin-detail-section">
+                <h3>Uncertainty and blockers</h3>
+                {data.selectedFinding.explanation.blockers.length ? (
+                  <ul>
+                    {data.selectedFinding.explanation.blockers.map((blocker) => (
+                      <li key={`${blocker.type}-${blocker.message}`}>{blocker.message}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No blocker messages were recorded.</p>
+                )}
+              </section>
+
+              <section className="admin-detail-section">
+                <h3>Product signals reviewed</h3>
                 <ul>
-                  {data.selectedFinding.explanation.basis.map((basis) => (
-                    <li key={`${basis.source}-${basis.matchedTerm}-${basis.rawValue}`}>
-                      {basis.source}: matched “{basis.rawValue}” to “{basis.taxonomyFullPath}” via
-                      {` ${basis.matchType.toLowerCase().replaceAll("_", " ")} `}
-                      on “{basis.matchedTerm}”.
-                    </li>
-                  ))}
+                  <li>Title: {data.selectedFinding.evidence.title}</li>
+                  <li>Product type: {data.selectedFinding.evidence.productType ?? "Not set"}</li>
+                  <li>Vendor: {data.selectedFinding.evidence.vendor ?? "Not set"}</li>
+                  <li>
+                    Tags:{" "}
+                    {data.selectedFinding.evidence.tags.length
+                      ? data.selectedFinding.evidence.tags.join(", ")
+                      : "None"}
+                  </li>
+                  <li>
+                    Collections:{" "}
+                    {data.selectedFinding.evidence.collections.length
+                      ? data.selectedFinding.evidence.collections.join(", ")
+                      : "None"}
+                  </li>
                 </ul>
-              ) : (
-                <p>No positive basis facts were recorded for this finding.</p>
-              )}
-            </section>
-
-            <section>
-              <h2 style={{ fontSize: "1rem" }}>Uncertainty and blockers</h2>
-              {data.selectedFinding.explanation.blockers.length ? (
-                <ul>
-                  {data.selectedFinding.explanation.blockers.map((blocker) => (
-                    <li key={`${blocker.type}-${blocker.message}`}>{blocker.message}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No blocker messages were recorded.</p>
-              )}
-            </section>
-
-            <section>
-              <h2 style={{ fontSize: "1rem" }}>Product signals reviewed</h2>
-              <ul>
-                <li>Title: {data.selectedFinding.evidence.title}</li>
-                <li>Product type: {data.selectedFinding.evidence.productType ?? "Not set"}</li>
-                <li>Vendor: {data.selectedFinding.evidence.vendor ?? "Not set"}</li>
-                <li>
-                  Tags:{" "}
-                  {data.selectedFinding.evidence.tags.length
-                    ? data.selectedFinding.evidence.tags.join(", ")
-                    : "None"}
-                </li>
-                <li>
-                  Collections:{" "}
-                  {data.selectedFinding.evidence.collections.length
-                    ? data.selectedFinding.evidence.collections.join(", ")
-                    : "None"}
-                </li>
-              </ul>
-            </section>
-          </div>
+              </section>
+            </div>
+          </aside>
         </div>
       ) : null}
-    </s-page>
+    </AdminPage>
   );
 }

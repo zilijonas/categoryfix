@@ -1,0 +1,15 @@
+---
+interface Props {
+  step: string;
+  title: string;
+  body: string;
+}
+
+const { step, title, body } = Astro.props;
+---
+
+<article class="workflow-step">
+  <p class="step-index">{step}</p>
+  <h3>{title}</h3>
+  <p>{body}</p>
+</article>

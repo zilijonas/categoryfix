@@ -8,6 +8,15 @@ import { siteConfig } from "../src/content/site.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const distRoot = path.join(appRoot, "dist");
+const designDocPath = path.resolve(appRoot, "..", "..", "DESIGN.md");
+const legacyDocsDir = ["design", "system", "categoryfix"];
+const legacyDesignSystemMasterPath = path.resolve(
+  appRoot,
+  "..",
+  "..",
+  ...legacyDocsDir,
+  "MASTER.md",
+);
 
 const requiredRoutes = [
   "/",
@@ -50,13 +59,18 @@ describe("marketing build output", () => {
     }
   });
 
+  it("keeps the canonical design reference and removes legacy design docs", () => {
+    expect(existsSync(designDocPath)).toBe(true);
+    expect(existsSync(legacyDesignSystemMasterPath)).toBe(false);
+  });
+
   it("keeps required trust copy on the homepage", () => {
     const html = readRouteHtml("/");
 
     expect(html).toContain("Preview every category change before anything is written.");
     expect(html).toContain("Undo and rollback stay available after apply jobs complete");
     expect(html).toContain("AI-assisted suggestions stay optional and advisory.");
-    expect(html).not.toContain("fully autonomous");
+    expect(html).toContain("No fully autonomous AI categorization claims.");
   });
 
   it("publishes legal and support navigation links", () => {
@@ -81,12 +95,28 @@ describe("marketing build output", () => {
     expect(betaHtml).toContain(siteConfig.supportEmail);
   });
 
+  it("keeps primary CTA targets aligned with the current beta flow", () => {
+    const homeHtml = readRouteHtml("/");
+
+    expect(homeHtml).toContain("mailto:support@categoryfix.com?subject=CategoryFix%20beta%20request");
+    expect(homeHtml).toContain(siteConfig.appUrl);
+  });
+
+  it("ships the homepage hero variant and theme controls", () => {
+    const homeHtml = readRouteHtml("/");
+
+    expect(homeHtml).toContain('data-theme="dark"');
+    expect(homeHtml).toContain("hero-shell-home");
+    expect(homeHtml).toContain("data-theme-toggle");
+    expect(homeHtml).toContain("categoryfix-theme");
+  });
+
   it("keeps docs focused on the merchant workflow", () => {
     const html = readRouteHtml("/docs");
 
-    expect(html).toContain("Run a scan");
-    expect(html).toContain("Review findings by status");
-    expect(html).toContain("Use preview counts before apply");
-    expect(html).toContain("Keep rollback in mind");
+    expect(html).toContain("Run a Scan");
+    expect(html).toContain("Review Findings by Status");
+    expect(html).toContain("Use Preview Counts Before Apply");
+    expect(html).toContain("Keep Rollback in Mind");
   });
 });

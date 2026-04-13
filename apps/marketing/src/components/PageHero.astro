@@ -1,0 +1,37 @@
+---
+import ActionGroup from "./ActionGroup.astro";
+import type { ActionLink } from "../content/site.js";
+
+interface Props {
+  eyebrow: string;
+  title: string;
+  intro: string;
+  supportingCopy?: string;
+  actions?: ActionLink[];
+  variant?: "default" | "home";
+}
+
+const { eyebrow, title, intro, supportingCopy, actions = [], variant = "default" } = Astro.props;
+---
+
+<section
+  class:list={[
+    "hero-shell",
+    `hero-shell-${variant}`,
+    Astro.slots.has("aside") && "hero-shell-split",
+  ]}
+>
+  <div class="hero-main">
+    <p class="eyebrow">{eyebrow}</p>
+    <h1>{title}</h1>
+    <p class="hero-intro">{intro}</p>
+    {supportingCopy ? <p class="hero-supporting">{supportingCopy}</p> : null}
+    {actions.length ? <ActionGroup actions={actions} /> : null}
+  </div>
+
+  {Astro.slots.has("aside") ? (
+    <aside class="hero-aside">
+      <slot name="aside" />
+    </aside>
+  ) : null}
+</section>

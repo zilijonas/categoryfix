@@ -1,0 +1,21 @@
+---
+import { marketingIconMap, type MarketingIconName } from "../lib/marketing-icons.js";
+
+interface Props {
+  name: MarketingIconName;
+  size?: number;
+  className?: string;
+}
+
+const { name, size = 18, className } = Astro.props;
+
+const rawSvg = marketingIconMap[name];
+const iconMarkup = rawSvg
+  .replace("<svg", '<svg class="marketing-icon-svg" aria-hidden="true" focusable="false"')
+  .replace(/width="[^"]+"/, `width="${size}"`)
+  .replace(/height="[^"]+"/, `height="${size}"`)
+  .replace(/stroke="[^"]+"/, 'stroke="currentColor"')
+  .replace(/stroke-width="[^"]+"/, 'stroke-width="1.9"');
+---
+
+<span class:list={["marketing-icon", className]} set:html={iconMarkup} />

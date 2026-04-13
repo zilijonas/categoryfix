@@ -1,0 +1,24 @@
+---
+type AnchorItem = {
+  id: string;
+  label: string;
+};
+
+interface Props {
+  title?: string;
+  items: AnchorItem[];
+}
+
+const { title = "On this page", items } = Astro.props;
+---
+
+<nav class="legal-anchor-nav" aria-label={title}>
+  <p class="eyebrow">{title}</p>
+  <ul class="anchor-list">
+    {items.map((item) => (
+      <li>
+        <a href={`#${item.id}`}>{item.label}</a>
+      </li>
+    ))}
+  </ul>
+</nav>

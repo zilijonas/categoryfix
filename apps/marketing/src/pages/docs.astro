@@ -1,90 +1,96 @@
 ---
+import FeatureCard from "../components/FeatureCard.astro";
+import PageHero from "../components/PageHero.astro";
+import SectionShell from "../components/SectionShell.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
-import { betaMailtoHref, withBase } from "../content/site.js";
+import { primaryCtas, supportMailtoHref, withBase } from "../content/site.js";
+
+const quickStart = [
+  {
+    title: "Run a Scan",
+    body: "Start with a fresh scan so the review surface reflects current Shopify category state and the latest product signals.",
+  },
+  {
+    title: "Review Findings by Status",
+    body: "Accepted deterministic findings can be safer bulk candidates, while review-required and AI-assisted outcomes deserve closer inspection.",
+  },
+  {
+    title: "Use Preview Counts Before Apply",
+    body: "Preview counts make the upcoming change set explicit before a merchant confirms any category write.",
+  },
+  {
+    title: "Keep Rollback in Mind",
+    body: "After an apply job completes, rollback remains available when an approved category change needs to be reversed.",
+  },
+];
 ---
 
 <MarketingLayout
   title="Docs"
   description="Merchant-facing guidance for CategoryFix scan, review, apply, rollback, and support expectations."
 >
-  <section class="page-hero">
-    <p class="eyebrow">Merchant docs</p>
-    <h1>Start with the workflow merchants actually use.</h1>
-    <p>
-      This page is intentionally product-facing. It explains what CategoryFix checks, how review and
-      apply behave, and when to contact support during the closed beta.
-    </p>
-  </section>
+  <PageHero
+    eyebrow="Merchant Docs"
+    title="Start with the Workflow Merchants Actually Use."
+    intro="This page stays product-facing on purpose. It explains what CategoryFix checks, how review and apply behave, and when to contact support during the closed beta."
+    actions={[{ ...primaryCtas.viewWorkflow, href: withBase("/how-it-works") }, primaryCtas.contactSupport]}
+  />
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Quick start</p>
-        <h2>What to expect inside the app</h2>
-      </div>
+  <SectionShell
+    eyebrow="Quick Start"
+    title="What to Expect Inside the App"
+    intro="These steps reflect the current merchant-facing workflow rather than a future-state product story."
+  >
+    <div class="card-grid card-grid-two">
+      {quickStart.map((item) => (
+        <FeatureCard title={item.title} body={item.body} tone="accent" />
+      ))}
     </div>
+  </SectionShell>
 
-    <div class="docs-grid">
-      <article>
-        <h3>Run a scan</h3>
-        <p>
-          Start with a fresh scan so the review surface reflects current Shopify category state and
-          product signals.
-        </p>
-      </article>
-      <article>
-        <h3>Review findings by status</h3>
-        <p>
-          Accepted deterministic findings can be safer bulk candidates, while review-required and
-          AI-assisted outcomes deserve closer inspection.
-        </p>
-      </article>
-      <article>
-        <h3>Use preview counts before apply</h3>
-        <p>
-          Preview counts make the upcoming change set explicit. Review the number of products and the
-          basis behind them before you confirm.
-        </p>
-      </article>
-      <article>
-        <h3>Keep rollback in mind</h3>
-        <p>
-          After an apply job completes, rollback remains available when an approved category change
-          needs to be reversed.
-        </p>
-      </article>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">What CategoryFix evaluates</p>
-        <h2>Signals used for deterministic recommendations</h2>
-      </div>
-    </div>
-
+  <SectionShell
+    eyebrow="Signals Used Today"
+    title="What CategoryFix Evaluates for Deterministic Recommendations"
+    intro="Recommendation quality starts with the inputs the product can actually inspect and explain."
+    tone="tint"
+  >
     <ul class="plain-list">
-      <li>Product title</li>
-      <li>Product type</li>
-      <li>Vendor</li>
-      <li>Tags</li>
-      <li>Collections, when available</li>
-      <li>Current Shopify category state</li>
+      <li>Product title.</li>
+      <li>Product type.</li>
+      <li>Vendor.</li>
+      <li>Tags.</li>
+      <li>Collections, when available.</li>
+      <li>Current Shopify category state.</li>
     </ul>
-  </section>
+  </SectionShell>
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Need help?</p>
-        <h2>Support stays simple during the closed beta</h2>
-      </div>
+  <SectionShell
+    eyebrow="Need Help?"
+    title="Support Stays Simple During the Closed Beta."
+    intro="Email-based support is intentional at this stage, and the shortest path is still the most effective one."
+  >
+    <div class="comparison-grid">
+      <article class="comparison-card comparison-card-positive">
+        <h3>Before You Escalate</h3>
+        <ul class="bullet-list">
+          <li>Review the finding status and basis facts.</li>
+          <li>Check preview counts before applying a change set.</li>
+          <li>Look for rollback options after completed apply jobs.</li>
+        </ul>
+      </article>
+      <article class="comparison-card comparison-card-caution">
+        <h3>When to Email Support</h3>
+        <ul class="bullet-list">
+          <li>Recommendation basis looks incomplete or unclear.</li>
+          <li>Apply or rollback behavior needs investigation.</li>
+          <li>Privacy, beta access, or operational timing questions come up.</li>
+        </ul>
+      </article>
     </div>
 
-    <div class="stacked-actions">
-      <a class="button" href={withBase("/support")}>Open support guidance</a>
-      <a class="button button-secondary" href={betaMailtoHref}>Email the beta team</a>
+    <div class="action-group">
+      <a class="button" href={withBase("/support")}>Open Support Guidance</a>
+      <a class="button button-secondary" href={supportMailtoHref}>Email the Beta Team</a>
     </div>
-  </section>
+  </SectionShell>
 </MarketingLayout>

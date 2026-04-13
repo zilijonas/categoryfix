@@ -1,148 +1,176 @@
 ---
+import FeatureCard from "../components/FeatureCard.astro";
+import MarketingIcon from "../components/MarketingIcon.astro";
+import MetricStrip from "../components/MetricStrip.astro";
+import PageHero from "../components/PageHero.astro";
+import SectionShell from "../components/SectionShell.astro";
+import WorkflowStep from "../components/WorkflowStep.astro";
+import type { MarketingIconName } from "../lib/marketing-icons.js";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
-import { betaMailtoHref, siteConfig, withBase } from "../content/site.js";
+import {
+  homeMetrics,
+  primaryCtas,
+  siteConfig,
+  trustGuardrails,
+  trustPillars,
+  withBase,
+  workflowOverview,
+} from "../content/site.js";
+
+const pathActions = [
+  {
+    icon: "compass",
+    title: "Product",
+    body: "See the current beta scope, safeguards, and what CategoryFix intentionally does not claim.",
+    href: withBase("/product"),
+    hrefLabel: "Read the Product Story",
+  },
+  {
+    icon: "book-open",
+    title: "Docs",
+    body: "Follow the merchant workflow for scan, review, apply, rollback, and support handoff.",
+    href: withBase("/docs"),
+    hrefLabel: "Open Merchant Docs",
+  },
+  {
+    icon: "life-buoy",
+    title: "Support",
+    body: `Reach ${siteConfig.supportEmail} when a recommendation, apply job, or rollback flow needs a human check-in.`,
+    href: withBase("/support"),
+    hrefLabel: "Review Support Guidance",
+  },
+] satisfies {
+  icon: MarketingIconName;
+  title: string;
+  body: string;
+  href: string;
+  hrefLabel: string;
+}[];
 ---
 
 <MarketingLayout
-  title="Category review that stays explainable"
+  title="Category Review That Stays Explainable"
   description="CategoryFix helps Shopify teams review category recommendations with clear reasons, explicit preview, and rollback-ready changes."
 >
-  <section class="hero">
-    <div class="hero-copy">
-      <p class="eyebrow">Trust-first closed beta</p>
-      <h1>Review Shopify category recommendations without blind automation.</h1>
-      <p>
-        CategoryFix scans your catalog, highlights missing or likely-wrong Shopify product
-        categories, and keeps every recommendation grounded in the product fields that triggered
-        it. <span class="highlight">Preview every category change before anything is written.</span>
-      </p>
-      <div class="hero-actions">
-        <a class="button" href={betaMailtoHref}>Request beta access</a>
-        <a class="button button-secondary" href={withBase("/how-it-works")}>See the workflow</a>
-      </div>
-    </div>
-
-    <div class="hero-proof">
-      <article class="proof-card">
-        <strong>Deterministic first</strong>
-        <p>
-          The primary workflow is rule-based and explainable. CategoryFix shows the product facts
-          and matched signals behind each recommendation.
-        </p>
-      </article>
-      <article class="proof-card">
-        <strong>Preview before write</strong>
-        <p>
-          No category write happens automatically. Merchants review counts, inspect reasoning, and
-          explicitly confirm changes before apply jobs run.
-        </p>
-      </article>
-      <article class="proof-card">
-        <strong>Rollback stays visible</strong>
-        <p>
-          Undo and rollback stay available after apply jobs complete, so corrective action remains
-          part of the product flow instead of a support-only fallback.
-        </p>
-      </article>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">What the beta covers</p>
-        <h2>Built for careful category correction, not autopilot merchandising.</h2>
-      </div>
-    </div>
-
-    <div class="section-grid">
-      <article class="card">
-        <p class="kicker">Scan</p>
-        <h3>Find high-signal category gaps</h3>
-        <p>
-          CategoryFix evaluates title, product type, vendor, tags, collections, and existing
-          category state to flag products that look missing or mismatched.
-        </p>
-      </article>
-      <article class="card">
-        <p class="kicker">Review</p>
-        <h3>See why a recommendation exists</h3>
-        <p>
-          Review screens surface the basis facts, confidence labels, and the number of affected
-          products before you approve anything.
-        </p>
-      </article>
-      <article class="card">
-        <p class="kicker">Apply</p>
-        <h3>Write only after an explicit decision</h3>
-        <p>
-          Safe deterministic findings can be selected in bulk, while review-required and
-          AI-assisted outcomes stay opt-in and visibly distinct.
-        </p>
-      </article>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">How AI appears</p>
-        <h2>AI-assisted suggestions stay optional and advisory.</h2>
-      </div>
-    </div>
-
-    <div class="docs-grid">
+  <PageHero
+    eyebrow="Trust-First Closed Beta"
+    title="Review Shopify Category Recommendations Without Blind Automation."
+    intro="CategoryFix helps merchandising teams spot missing or likely-wrong Shopify product categories, inspect the evidence behind every suggestion, and approve changes only when the review surface supports the decision."
+    supportingCopy="Preview every category change before anything is written."
+    actions={[primaryCtas.requestBeta, primaryCtas.viewWorkflow]}
+    variant="home"
+  >
+    <div slot="aside" class="aside-stack home-hero-proof">
       <article>
-        <h3>Only after no-safe deterministic results</h3>
+        <div class="proof-card-title">
+          <MarketingIcon name="shield-check" />
+          <strong>Deterministic First</strong>
+        </div>
         <p>
-          Optional AI assistance is reserved for products where the deterministic engine cannot make
-          a safe recommendation. It is supporting context, not platform truth.
+          Recommendations stay grounded in product fields and current category state rather than a
+          hidden scoring model.
         </p>
       </article>
       <article>
-        <h3>Never part of default bulk apply</h3>
+        <div class="proof-card-title">
+          <MarketingIcon name="sliders-horizontal" />
+          <strong>Merchant Control</strong>
+        </div>
         <p>
-          AI-assisted suggestions are visually distinct and excluded from default bulk apply flows.
-          Merchants must choose them intentionally.
+          Preview counts, basis facts, and explicit confirmation keep the approval loop visible from
+          scan through apply.
         </p>
       </article>
-    </div>
-
-    <div class="callout">
-      <p>
-        Current public beta messaging stays aligned with what is already implemented in the embedded
-        app: deterministic recommendations, explainable review, explicit apply, rollback, and
-        optional AI fallback support.
-      </p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Explore the surface</p>
-        <h2>Start with the product story, then move into docs and support.</h2>
-      </div>
-    </div>
-
-    <div class="support-grid">
-      <article class="card">
-        <h3>Product</h3>
-        <p>Understand the current beta capabilities and what CategoryFix intentionally does not claim.</p>
-        <a href={withBase("/product")}>Read the product explainer</a>
-      </article>
-      <article class="card">
-        <h3>Docs</h3>
-        <p>See a merchant-facing walkthrough of scan, review, apply, rollback, and support expectations.</p>
-        <a href={withBase("/docs")}>Open the docs page</a>
-      </article>
-      <article class="card">
-        <h3>Support</h3>
-        <p>
-          Reach the beta support contact at <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
-        </p>
-        <a href={withBase("/support")}>Review support details</a>
+      <article>
+        <div class="proof-card-title">
+          <MarketingIcon name="rotate-ccw" />
+          <strong>Rollback Visibility</strong>
+        </div>
+        <p>Undo and rollback stay available after apply jobs complete.</p>
       </article>
     </div>
-  </section>
+  </PageHero>
+
+  <MetricStrip items={homeMetrics} />
+
+  <SectionShell
+    eyebrow="What the Beta Covers"
+    title="Built for Careful Category Correction, Not Autopilot Merchandising."
+    intro="The public site emphasizes the current product truth: deterministic recommendations, explainable review, explicit apply, and rollback-ready change management."
+  >
+    <div class="card-grid card-grid-three">
+      {trustPillars.map((pillar) => (
+        <FeatureCard
+          eyebrow={pillar.eyebrow}
+          icon={pillar.icon}
+          title={pillar.title}
+          body={pillar.body}
+          tone="accent"
+        />
+      ))}
+    </div>
+  </SectionShell>
+
+  <SectionShell
+    eyebrow="Workflow Overview"
+    title="Move from Scan to Rollback with the Same Trust Model End to End."
+    intro="The product flow stays narrow on purpose so teams can evaluate category changes with context instead of relying on invisible automation."
+    tone="tint"
+  >
+    <div class="workflow-grid">
+      {workflowOverview.map((step) => (
+        <WorkflowStep step={step.step} title={step.title} body={step.body} />
+      ))}
+    </div>
+  </SectionShell>
+
+  <SectionShell
+    eyebrow="Where AI Fits"
+    title="Optional AI Support Never Replaces the Review Surface."
+    intro="AI only appears after deterministic logic cannot produce a safe recommendation, and the product still keeps merchant review in the loop."
+  >
+    <div class="comparison-grid">
+      <article class="comparison-card comparison-card-positive">
+        <div class="comparison-card-heading">
+          <MarketingIcon name="shield-check" />
+          <h3>What the Product Does</h3>
+        </div>
+        <ul class="status-list">
+          {trustGuardrails.map((item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
+      </article>
+      <article class="comparison-card comparison-card-caution">
+        <div class="comparison-card-heading">
+          <MarketingIcon name="sparkles" />
+          <h3>What the Site Will Not Imply</h3>
+        </div>
+        <ul class="status-list">
+          <li>No fully autonomous AI categorization claims.</li>
+          <li>No certainty theater, no silent writes, and no “fixed it for you” language.</li>
+          <li>No social-proof theater that pretends the closed beta already has broad public validation.</li>
+        </ul>
+      </article>
+    </div>
+  </SectionShell>
+
+  <SectionShell
+    eyebrow="Explore the Surface"
+    title="Start with the Product Story, Then Move into Docs, Support, and Beta Intake."
+    intro="Each route now follows the same design system, trust language, and action hierarchy."
+  >
+    <div class="card-grid card-grid-three">
+      {pathActions.map((item) => (
+        <FeatureCard
+          icon={item.icon}
+          title={item.title}
+          body={item.body}
+          href={item.href}
+          hrefLabel={item.hrefLabel}
+          tone="subtle"
+        />
+      ))}
+    </div>
+  </SectionShell>
 </MarketingLayout>

@@ -2,6 +2,13 @@ import { useState } from "react";
 import { Form, useActionData, useLoaderData } from "react-router";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
+import {
+  AdminPage,
+  AdminPanel,
+  Field,
+  InlineMessage,
+  buttonClassName,
+} from "../../components/admin-ui.js";
 import { withRouteErrorReporting } from "../../lib/route-observability.server.js";
 import { login } from "../../shopify.server.js";
 
@@ -65,31 +72,54 @@ export default function LoginRoute() {
   const actionData = useActionData<typeof action>();
   const [shop, setShop] = useState("");
   const errors = actionData?.errors ?? loaderData.errors;
-  const errorProps = errors.shop ? { error: errors.shop } : {};
 
   return (
     <AppProvider embedded={false}>
-      <s-page heading="CategoryFix">
+      <div className="admin-shell">
         <Form method="post">
-          <s-section heading="Install the embedded app">
-            <s-paragraph>
-              Enter the dev store domain to start Shopify-managed installation.
-            </s-paragraph>
-            <s-stack direction="block" gap="base">
-              <s-text-field
-                autocomplete="on"
-                details="example.myshopify.com"
-                {...errorProps}
-                label="Shop domain"
-                name="shop"
-                onChange={(event) => setShop(event.currentTarget.value)}
-                value={shop}
-              />
-              <s-button type="submit">Continue to Shopify</s-button>
-            </s-stack>
-          </s-section>
+          <AdminPage
+            eyebrow="Install the embedded app"
+            title="CategoryFix"
+            description="Enter the dev store domain to start Shopify-managed installation."
+            actions={
+              <button
+                className={`${buttonClassName("ghost")} admin-theme-toggle`}
+                data-theme-toggle
+                type="button"
+              >
+                <span data-theme-toggle-label>Theme: Dark</span>
+              </button>
+            }
+          >
+            <AdminPanel
+              title="Install the embedded app"
+              subtitle="Keep the entry flow simple: identify the shop, continue to Shopify, and let the managed install flow do the rest."
+              tone="forest"
+            >
+              <div className="admin-form-grid">
+                <Field htmlFor="shop" label="Shop domain">
+                  <input
+                    autoComplete="on"
+                    id="shop"
+                    name="shop"
+                    onChange={(event) => setShop(event.currentTarget.value)}
+                    placeholder="example.myshopify.com"
+                    value={shop}
+                  />
+                </Field>
+
+                {errors.shop ? <InlineMessage tone="danger">{errors.shop}</InlineMessage> : null}
+
+                <div className="admin-inline-actions">
+                  <button className={buttonClassName()} type="submit">
+                    Continue to Shopify
+                  </button>
+                </div>
+              </div>
+            </AdminPanel>
+          </AdminPage>
         </Form>
-      </s-page>
+      </div>
     </AppProvider>
   );
 }

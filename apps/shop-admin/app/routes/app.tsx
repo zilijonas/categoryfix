@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Link, Outlet, useLoaderData, useRouteError } from "react-router";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -20,10 +20,40 @@ export default function AppLayout() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <nav style={{ padding: "0.75rem 1rem" }}>
-        <a href="/app">Overview</a>
-      </nav>
-      <Outlet />
+      <div className="admin-shell">
+        <header className="admin-topbar">
+          <div className="admin-brand-block">
+            <Link className="admin-brand" to="/app">
+              <span className="admin-brand-mark" aria-hidden="true">
+                CF
+              </span>
+              <span className="admin-brand-copy">
+                <strong>CategoryFix</strong>
+                <span>Explainable category review inside Shopify</span>
+              </span>
+            </Link>
+            <p className="admin-brand-note">
+              Merchant workspace for deterministic review, explicit apply, and rollback.
+            </p>
+          </div>
+
+          <div className="admin-topbar-actions">
+            <nav className="admin-topnav" aria-label="App">
+              <Link className="admin-toplink" to="/app">
+                Overview
+              </Link>
+            </nav>
+
+            <button className="admin-button admin-button-ghost admin-theme-toggle" data-theme-toggle type="button">
+              <span data-theme-toggle-label>Theme: Dark</span>
+            </button>
+          </div>
+        </header>
+
+        <main className="admin-main">
+          <Outlet />
+        </main>
+      </div>
     </AppProvider>
   );
 }

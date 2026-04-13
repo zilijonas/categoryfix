@@ -1,0 +1,35 @@
+---
+import MarketingIcon from "./MarketingIcon.astro";
+import type { MarketingIconName } from "../lib/marketing-icons.js";
+
+interface Props {
+  eyebrow?: string;
+  icon?: MarketingIconName;
+  title: string;
+  body: string;
+  href?: string;
+  hrefLabel?: string;
+  tone?: "default" | "accent" | "subtle";
+}
+
+const { eyebrow, icon, title, body, href, hrefLabel, tone = "default" } = Astro.props;
+---
+
+<article class:list={["feature-card", `feature-card-${tone}`]}>
+  {eyebrow || icon ? (
+    <div class="card-kicker">
+      {icon ? <MarketingIcon name={icon} className="card-kicker-icon" /> : null}
+      {eyebrow ? <p class="card-eyebrow">{eyebrow}</p> : null}
+    </div>
+  ) : null}
+  <div class="surface-copy surface-copy-compact">
+    <h3>{title}</h3>
+    <p>{body}</p>
+  </div>
+  {href && hrefLabel ? (
+    <a class="card-link" href={href}>
+      <span>{hrefLabel}</span>
+      <MarketingIcon name="arrow-right" size={16} />
+    </a>
+  ) : null}
+</article>

@@ -1,55 +1,65 @@
 ---
+import LegalAnchorNav from "../components/LegalAnchorNav.astro";
+import PageHero from "../components/PageHero.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { siteConfig } from "../content/site.js";
+
+const sections = [
+  { id: "beta-service", label: "Beta Service" },
+  { id: "merchant-control", label: "Merchant Control Over Writes" },
+  { id: "no-guarantees", label: "No Launch-Level Guarantees Yet" },
+  { id: "feedback", label: "Feedback & Beta Communication" },
+];
 ---
 
 <MarketingLayout
   title="Terms"
   description="Closed-beta terms page for CategoryFix, written to match the current product posture and support model."
 >
-  <section class="page-hero">
-    <p class="eyebrow">Terms</p>
-    <h1>Closed-beta terms with realistic expectations.</h1>
-    <p>
-      These terms are intentionally beta-oriented placeholders. They describe the current posture of
-      the service and should be reviewed by counsel before broader commercial launch.
-    </p>
-  </section>
+  <PageHero
+    eyebrow="Terms"
+    title="Closed-Beta Terms with Realistic Expectations."
+    intro="These terms are intentionally beta-oriented placeholders. They describe the current posture of the service and should be reviewed by counsel before broader commercial launch."
+  />
 
-  <div class="legal-panel">
-    <section>
-      <h2>Beta service</h2>
-      <p>
-        CategoryFix is currently offered as a closed beta for Shopify merchants evaluating a safer
-        category review workflow. Features, availability, and operating procedures may change as the
-        beta evolves.
-      </p>
-    </section>
+  <div class="legal-layout">
+    <LegalAnchorNav items={sections} />
 
-    <section>
-      <h2>Merchant control over writes</h2>
-      <p>
-        The product is designed around preview before write. Merchants remain responsible for
-        reviewing recommendations and deciding whether to apply category changes in their stores.
-      </p>
-    </section>
+    <div class="legal-panel">
+      <section id="beta-service">
+        <h2>Beta Service</h2>
+        <p>
+          CategoryFix is currently offered as a closed beta for Shopify merchants evaluating a safer
+          category review workflow. Features, availability, and operating procedures may change as
+          the beta evolves.
+        </p>
+      </section>
 
-    <section>
-      <h2>No launch-level guarantees yet</h2>
-      <p>
-        The closed beta is provided for evaluation purposes. Do not rely on this placeholder page
-        as a final production service-level commitment, pricing statement, or warranty document.
-      </p>
-      <p>No live billing is enabled in the current beta release.</p>
-    </section>
+      <section id="merchant-control">
+        <h2>Merchant Control Over Writes</h2>
+        <p>
+          The product is designed around preview before write. Merchants remain responsible for
+          reviewing recommendations and deciding whether to apply category changes in their stores.
+        </p>
+      </section>
 
-    <section>
-      <h2>Feedback and beta communication</h2>
-      <p>
-        Beta feedback may be used to improve the product and supporting documentation. Questions
-        about access, support, or the current beta terms can be sent to{" "}
-        <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
-      </p>
-    </section>
+      <section id="no-guarantees">
+        <h2>No Launch-Level Guarantees Yet</h2>
+        <p>
+          The closed beta is provided for evaluation purposes. Do not rely on this placeholder page
+          as a final production service-level commitment, pricing statement, or warranty document.
+        </p>
+        <p>No live billing is enabled in the current beta release.</p>
+      </section>
+
+      <section id="feedback">
+        <h2>Feedback & Beta Communication</h2>
+        <p>
+          Beta feedback may be used to improve the product and supporting documentation. Questions
+          about access, support, or the current beta terms can be sent to{" "}
+          <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
+        </p>
+      </section>
+    </div>
   </div>
 </MarketingLayout>

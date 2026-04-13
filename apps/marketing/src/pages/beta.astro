@@ -1,38 +1,62 @@
 ---
+import FeatureCard from "../components/FeatureCard.astro";
+import PageHero from "../components/PageHero.astro";
+import SectionShell from "../components/SectionShell.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
-import { betaMailtoHref, siteConfig } from "../content/site.js";
+import { betaMailtoHref, primaryCtas, siteConfig, withBase } from "../content/site.js";
+
+const betaChecklist = [
+  "Your Shopify store or catalog context.",
+  "Why category cleanup matters to your team right now.",
+  "Whether deterministic review, rollback, or AI-assisted fallback support is the bigger need.",
+  "Any timeline or operational constraints for the beta.",
+];
 ---
 
 <MarketingLayout
-  title="Closed beta"
+  title="Closed Beta"
   description="Request CategoryFix closed-beta access through the current email-based intake flow."
 >
-  <section class="page-hero">
-    <p class="eyebrow">Closed beta</p>
-    <h1>Start with an email, not a form stack.</h1>
-    <p>
-      Phase 8 keeps the beta intake intentionally lightweight. There is no first-party signup
-      backend here yet. If you want to evaluate CategoryFix, send a short note to{" "}
-      <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a>.
-    </p>
-    <div class="stacked-actions">
-      <a class="button" href={betaMailtoHref}>Request beta access</a>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Closed Beta"
+    title="Start with an Email, Not a Form Stack."
+    intro={`Phase 8 keeps beta intake intentionally lightweight. There is no first-party signup backend here yet. If you want to evaluate CategoryFix, send a short note to ${siteConfig.supportEmail}.`}
+    actions={[primaryCtas.requestBeta, { ...primaryCtas.viewDocs, href: withBase("/product") }]}
+  />
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">What to include</p>
-        <h2>Keep the beta conversation grounded in the current product</h2>
-      </div>
-    </div>
-
+  <SectionShell
+    eyebrow="What to Include"
+    title="Keep the Beta Conversation Grounded in the Current Product."
+    intro="The best beta requests describe the real review workflow you need help with, not a hypothetical future-state platform."
+  >
     <ul class="plain-list">
-      <li>Your Shopify store or catalog context</li>
-      <li>Why category cleanup matters to your team right now</li>
-      <li>Whether deterministic review, rollback, or AI-assisted fallback support is the bigger need</li>
-      <li>Any timeline or operational constraints for the beta</li>
+      {betaChecklist.map((item) => (
+        <li>{item}</li>
+      ))}
     </ul>
-  </section>
+  </SectionShell>
+
+  <SectionShell
+    eyebrow="What Happens Next"
+    title="Beta Intake Stays Human and Explicit."
+    intro="A lightweight intake flow fits the product’s current trust posture better than a polished but misleading signup funnel."
+    tone="tint"
+  >
+    <div class="card-grid card-grid-two">
+      <FeatureCard
+        title="Initial Fit Check"
+        body="The first conversation verifies whether your store context matches the current closed-beta scope and operational readiness."
+        tone="accent"
+      />
+      <FeatureCard
+        title="Product Truth First"
+        body="The response stays grounded in deterministic review, explicit apply, rollback visibility, and optional AI fallback support."
+        tone="accent"
+      />
+    </div>
+
+    <div class="action-group">
+      <a class="button" href={betaMailtoHref}>Request Beta Access</a>
+    </div>
+  </SectionShell>
 </MarketingLayout>

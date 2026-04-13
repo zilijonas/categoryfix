@@ -1,0 +1,19 @@
+---
+import type { ProofMetric } from "../content/site.js";
+
+interface Props {
+  items: ProofMetric[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="metric-strip">
+  {items.map((item) => (
+    <article class="metric-card">
+      <p class="metric-value">{item.value}</p>
+      <h3>{item.label}</h3>
+      <p>{item.detail}</p>
+    </article>
+  ))}
+</div>

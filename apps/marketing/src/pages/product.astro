@@ -1,107 +1,108 @@
 ---
+import FeatureCard from "../components/FeatureCard.astro";
+import PageHero from "../components/PageHero.astro";
+import SectionShell from "../components/SectionShell.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { primaryCtas, withBase } from "../content/site.js";
+
+const capabilities = [
+  {
+    eyebrow: "Detect",
+    title: "Find High-Signal Category Gaps",
+    body: "CategoryFix evaluates title, product type, vendor, tags, collections, and current category state to flag products that look missing or mismatched.",
+  },
+  {
+    eyebrow: "Review",
+    title: "Inspect the Basis Behind Every Suggestion",
+    body: "Recommendations remain explainable, with review surfaces that show the product facts and statuses behind the proposed change.",
+  },
+  {
+    eyebrow: "Apply",
+    title: "Approve Writes Only After an Explicit Decision",
+    body: "Safe deterministic findings can move in bulk, while review-required and AI-assisted outcomes stay visibly distinct and intentionally chosen.",
+  },
+];
+
+const safeguards = [
+  {
+    title: "Preview Before Write Is Mandatory",
+    body: "Merchants see what will change before apply jobs run. CategoryFix does not silently update product categories in the background.",
+  },
+  {
+    title: "No Certainty Theater",
+    body: "The product avoids numeric confidence percentages and does not present heuristic or advisory output as guaranteed truth.",
+  },
+  {
+    title: "AI Remains Secondary",
+    body: "AI-assisted suggestions are optional fallback support for deterministic no-safe results and are excluded from default bulk apply selections.",
+  },
+  {
+    title: "Rollback Is Not Hidden",
+    body: "Undo remains part of the product, not a support-only rescue path, so change management stays visible after apply jobs complete.",
+  },
+];
 ---
 
 <MarketingLayout
   title="Product"
   description="CategoryFix is a Shopify category review workflow focused on deterministic recommendations, preview-before-write safeguards, and rollback visibility."
 >
-  <section class="page-hero">
-    <p class="eyebrow">Product overview</p>
-    <h1>CategoryFix is a review workflow, not a black-box fixer.</h1>
-    <p>
-      The product is built to help merchants detect category gaps, inspect evidence, and approve
-      only the changes they want to write. It is intentionally narrow: Shopify category correction,
-      with explainability and rollback at the center.
-    </p>
-  </section>
+  <PageHero
+    eyebrow="Product Overview"
+    title="CategoryFix Is a Review Workflow, Not a Black-Box Fixer."
+    intro="The product helps Shopify teams detect category gaps, inspect evidence, and approve only the writes they actually want to send back to Shopify."
+    supportingCopy="It is intentionally narrow: category correction with explainability, preview-before-write safeguards, and rollback at the center."
+    actions={[primaryCtas.requestBeta, { ...primaryCtas.viewDocs, href: withBase("/docs") }]}
+  />
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Current capabilities</p>
-        <h2>What the Phase 7 product already supports</h2>
-      </div>
+  <SectionShell
+    eyebrow="Current Capabilities"
+    title="What the Current Product Already Supports"
+    intro="The marketing surface stays aligned with implemented behavior rather than promising a broader automation platform."
+  >
+    <div class="card-grid card-grid-three">
+      {capabilities.map((item) => (
+        <FeatureCard eyebrow={item.eyebrow} title={item.title} body={item.body} tone="accent" />
+      ))}
     </div>
+  </SectionShell>
 
-    <div class="feature-grid">
-      <article class="card">
-        <h3>Deterministic scan engine</h3>
-        <p>
-          Catalog scans create explainable recommendations using product title, product type,
-          vendor, tags, collections, and current category state.
-        </p>
-      </article>
-      <article class="card">
-        <h3>Merchant review workflow</h3>
-        <p>
-          Findings are grouped by status, preview counts are visible, and each recommendation shows
-          why CategoryFix suggested it.
-        </p>
-      </article>
-      <article class="card">
-        <h3>Explicit apply and rollback</h3>
-        <p>
-          Category writes happen only after merchant confirmation, and rollback stays available
-          through a first-party flow backed by stored before-and-after evidence.
-        </p>
-      </article>
+  <SectionShell
+    eyebrow="Safeguards"
+    title="Trust Rules Shape the Product Surface"
+    intro="The same trust model appears in copy, layout, and interaction decisions across the marketing site."
+    tone="tint"
+  >
+    <div class="card-grid card-grid-two">
+      {safeguards.map((item) => (
+        <FeatureCard title={item.title} body={item.body} />
+      ))}
     </div>
-  </section>
+  </SectionShell>
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Safeguards</p>
-        <h2>Trust rules shape the product surface</h2>
-      </div>
-    </div>
-
-    <div class="docs-grid">
-      <article>
-        <h3>Preview before write is mandatory</h3>
-        <p>
-          Merchants see what will change before apply jobs run. CategoryFix does not silently update
-          product categories in the background.
-        </p>
+  <SectionShell
+    eyebrow="Out of Scope in V1"
+    title="What This Beta Does Not Claim"
+    intro="Being explicit about what is out of scope keeps the product honest and reduces the risk of marketing drift."
+  >
+    <div class="comparison-grid">
+      <article class="comparison-card comparison-card-positive">
+        <h3>In Scope</h3>
+        <ul class="bullet-list">
+          <li>Deterministic recommendations with explanations.</li>
+          <li>Optional AI-assisted fallback support for deterministic no-safe outcomes.</li>
+          <li>Bulk review, safe bulk apply, rollback, and audit visibility.</li>
+        </ul>
       </article>
-      <article>
-        <h3>No certainty theater</h3>
-        <p>
-          The product avoids numeric confidence percentages and avoids claiming certainty when the
-          output is heuristic or advisory.
-        </p>
-      </article>
-      <article>
-        <h3>AI remains secondary</h3>
-        <p>
-          AI-assisted suggestions are optional fallback support for deterministic no-safe results.
-          They are clearly labeled and not included in default bulk apply selections.
-        </p>
-      </article>
-      <article>
-        <h3>Rollback is not hidden</h3>
-        <p>
-          Undo is treated as part of the product, not a back-office rescue path. That keeps change
-          management honest when a category decision needs to be reversed.
-        </p>
+      <article class="comparison-card comparison-card-caution">
+        <h3>Out of Scope</h3>
+        <ul class="bullet-list">
+          <li>Merchant-facing Google category workflows.</li>
+          <li>Billing automation and pricing flows.</li>
+          <li>Feed-management platform claims beyond category correction.</li>
+          <li>Fully autonomous AI categorization.</li>
+        </ul>
       </article>
     </div>
-  </section>
-
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Out of scope in v1</p>
-        <h2>What this beta does not claim</h2>
-      </div>
-    </div>
-
-    <ul class="plain-list">
-      <li>Google category management workflows are not part of the current merchant-facing product.</li>
-      <li>Billing automation and pricing flows are not part of the current beta experience.</li>
-      <li>CategoryFix is not positioned as a feed-management platform beyond category correction.</li>
-      <li>Fully autonomous AI categorization is intentionally out of scope.</li>
-    </ul>
-  </section>
+  </SectionShell>
 </MarketingLayout>

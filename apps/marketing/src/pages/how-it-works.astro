@@ -1,87 +1,61 @@
 ---
+import FeatureCard from "../components/FeatureCard.astro";
+import PageHero from "../components/PageHero.astro";
+import SectionShell from "../components/SectionShell.astro";
+import WorkflowStep from "../components/WorkflowStep.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { primaryCtas, workflowOverview } from "../content/site.js";
+
+const edgeCases = [
+  {
+    title: "No Safe Deterministic Recommendation",
+    body: "The product can say exactly that and leave the product unchanged. It does not force a suggestion where the rules cannot defend one.",
+  },
+  {
+    title: "Optional AI Fallback",
+    body: "If AI assistance is enabled, it is used only as supporting context for deterministic no-safe results and never as silent platform truth.",
+  },
+  {
+    title: "Stale Shopify State",
+    body: "Apply and rollback flows stay honest about stale data, so teams can re-run a scan before retrying a write against changed category state.",
+  },
+];
 ---
 
 <MarketingLayout
-  title="How it works"
+  title="How It Works"
   description="See how CategoryFix moves from scan to review, apply, and rollback without hiding uncertainty."
 >
-  <section class="page-hero">
-    <p class="eyebrow">Workflow</p>
-    <h1>Scan, review, apply, and roll back with the same trust model end to end.</h1>
-    <p>
-      CategoryFix is built around a simple rule: changes should stay explainable before they become
-      scalable. The workflow keeps that principle visible from the first scan through rollback.
-    </p>
-  </section>
+  <PageHero
+    eyebrow="Workflow"
+    title="Scan, Review, Apply, and Roll Back with the Same Trust Model."
+    intro="CategoryFix is built around a simple rule: changes should stay explainable before they become scalable."
+    supportingCopy="The workflow keeps that principle visible from the first scan through rollback."
+    actions={[primaryCtas.requestBeta, primaryCtas.viewDocs]}
+  />
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">The four-step loop</p>
-        <h2>How merchants work with the product today</h2>
-      </div>
+  <SectionShell
+    eyebrow="The Four-Step Loop"
+    title="How Merchants Work with the Product Today"
+    intro="Each step preserves the same information architecture: visible evidence, visible next actions, and visible recovery paths."
+  >
+    <div class="workflow-grid">
+      {workflowOverview.map((step) => (
+        <WorkflowStep step={step.step} title={step.title} body={step.body} />
+      ))}
     </div>
+  </SectionShell>
 
-    <div class="steps-grid">
-      <article class="step">
-        <p class="kicker">1. Scan</p>
-        <h3>Run a product scan</h3>
-        <p>
-          Bulk product reads gather the current category state and the catalog signals needed for
-          deterministic matching.
-        </p>
-      </article>
-      <article class="step">
-        <p class="kicker">2. Review</p>
-        <h3>Inspect the reasons</h3>
-        <p>
-          Findings show recommendation basis, confidence labels, and whether the item is safe for
-          default bulk selection or needs extra review.
-        </p>
-      </article>
-      <article class="step">
-        <p class="kicker">3. Apply</p>
-        <h3>Confirm category writes</h3>
-        <p>
-          Apply jobs execute only after explicit merchant confirmation. The workflow focuses on what
-          will change, not just that something can change.
-        </p>
-      </article>
-      <article class="step">
-        <p class="kicker">4. Roll back</p>
-        <h3>Reverse when needed</h3>
-        <p>
-          Rollback jobs use stored evidence from the original change, keeping reversal available
-          inside the product surface.
-        </p>
-      </article>
+  <SectionShell
+    eyebrow="Edge Cases"
+    title="What Happens When the System Is Not Sure"
+    intro="The product behaves conservatively when the recommendation surface needs more evidence or human judgment."
+    tone="tint"
+  >
+    <div class="card-grid card-grid-three">
+      {edgeCases.map((item) => (
+        <FeatureCard title={item.title} body={item.body} />
+      ))}
     </div>
-  </section>
-
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Edge cases</p>
-        <h2>What happens when the system is not sure</h2>
-      </div>
-    </div>
-
-    <div class="docs-grid">
-      <article>
-        <h3>No safe deterministic recommendation</h3>
-        <p>
-          The product can say exactly that and leave the product unchanged. It does not force a
-          suggestion where the rules cannot defend one.
-        </p>
-      </article>
-      <article>
-        <h3>Optional AI fallback</h3>
-        <p>
-          If AI assistance is enabled, it is used only as supporting context for deterministic
-          no-safe results, never as silent platform truth.
-        </p>
-      </article>
-    </div>
-  </section>
+  </SectionShell>
 </MarketingLayout>

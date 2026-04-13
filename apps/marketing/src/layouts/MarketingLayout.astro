@@ -1,8 +1,10 @@
 ---
+import MarketingIcon from "../components/MarketingIcon.astro";
 import "../styles/site.css";
 import {
   betaMailtoHref,
   createMailtoHref,
+  primaryCtas,
   siteConfig,
   withBase,
   type SiteLink,
@@ -16,7 +18,114 @@ interface Props {
 const { title, description } = Astro.props;
 const currentPath = Astro.url.pathname;
 const pageTitle = `${title} | ${siteConfig.name}`;
-const canonicalUrl = new URL(currentPath, Astro.site ?? siteConfig.productionSiteUrl);
+const canonicalUrl = new URL(
+  currentPath,
+  Astro.site ?? siteConfig.productionSiteUrl,
+);
+const themeStorageKey = "categoryfix-theme";
+const themeInitScript = `
+(() => {
+  const storageKey = ${JSON.stringify(themeStorageKey)};
+  const root = document.documentElement;
+  const media = window.matchMedia("(prefers-color-scheme: light)");
+  const getStoredTheme = () => {
+    try {
+      const value = window.localStorage.getItem(storageKey);
+      return value === "light" || value === "dark" ? value : null;
+    } catch {
+      return null;
+    }
+  };
+  const theme = getStoredTheme() ?? (media.matches ? "light" : "dark");
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
+})();
+`;
+const themeRuntimeScript = `
+(() => {
+  const storageKey = ${JSON.stringify(themeStorageKey)};
+  const root = document.documentElement;
+  const media = window.matchMedia("(prefers-color-scheme: light)");
+
+  const getStoredTheme = () => {
+    try {
+      const value = window.localStorage.getItem(storageKey);
+      return value === "light" || value === "dark" ? value : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getResolvedTheme = () => getStoredTheme() ?? (media.matches ? "light" : "dark");
+
+  const applyTheme = (theme) => {
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+    syncButtons(theme);
+  };
+
+  const persistTheme = (theme) => {
+    try {
+      window.localStorage.setItem(storageKey, theme);
+    } catch {}
+  };
+
+  const syncButtons = (theme = getResolvedTheme()) => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+      button.setAttribute("aria-label", "Switch to " + nextTheme + " theme");
+      button.setAttribute("title", "Switch to " + nextTheme + " theme");
+      button.setAttribute("data-current-theme", theme);
+      button.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+      const label = button.querySelector("[data-theme-toggle-label]");
+      if (label) {
+        label.textContent = "Current theme: " + theme.charAt(0).toUpperCase() + theme.slice(1);
+      }
+    });
+  };
+
+  const toggleTheme = () => {
+    const nextTheme = getResolvedTheme() === "dark" ? "light" : "dark";
+    persistTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const button = target.closest("[data-theme-toggle]");
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+
+    event.preventDefault();
+    toggleTheme();
+  });
+
+  const handleSystemThemeChange = () => {
+    if (!getStoredTheme()) {
+      applyTheme(getResolvedTheme());
+    }
+  };
+
+  if (typeof media.addEventListener === "function") {
+    media.addEventListener("change", handleSystemThemeChange);
+  } else if (typeof media.addListener === "function") {
+    media.addListener(handleSystemThemeChange);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => applyTheme(getResolvedTheme()), {
+      once: true,
+    });
+  } else {
+    applyTheme(getResolvedTheme());
+  }
+})();
+`;
 
 function isActive(pathname: string): boolean {
   if (pathname === "/") {
@@ -28,7 +137,7 @@ function isActive(pathname: string): boolean {
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -39,88 +148,209 @@ function isActive(pathname: string): boolean {
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalUrl.toString()} />
     <link rel="canonical" href={canonicalUrl.toString()} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&display=swap"
+    />
+    <script is:inline set:html={themeInitScript} />
   </head>
   <body>
     <div class="site-shell">
+      <a class="skip-link" href="#main-content">Skip to main content</a>
+
       <header class="site-header">
-        <a class="brand" href={withBase("/")}>
-          <span class="brand-mark">CF</span>
+        <a
+          class="brand"
+          href={withBase("/")}
+          aria-label={`${siteConfig.name} home`}
+        >
+          <span class="brand-mark" aria-hidden="true">CF</span>
           <span class="brand-copy">
             <strong>{siteConfig.name}</strong>
-            <span>Shopify category review, without blind automation.</span>
+            <span>{siteConfig.tagline}</span>
           </span>
         </a>
 
-        <nav class="site-nav" aria-label="Primary">
-          {siteConfig.navLinks.map((link: SiteLink) => (
-            <a
-              class:list={["nav-link", { "is-active": isActive(link.pathname) }]}
-              href={withBase(link.pathname)}
-              aria-current={isActive(link.pathname) ? "page" : undefined}
-            >
-              {link.label}
-            </a>
-          ))}
+        <nav class="site-nav site-nav-desktop" aria-label="Primary">
+          {
+            siteConfig.navLinks.map((link: SiteLink) => (
+              <a
+                class:list={[
+                  "nav-link",
+                  { "is-active": isActive(link.pathname) },
+                ]}
+                href={withBase(link.pathname)}
+                aria-current={isActive(link.pathname) ? "page" : undefined}
+              >
+                {link.label}
+              </a>
+            ))
+          }
         </nav>
 
-        <a class="button button-secondary header-cta" href={betaMailtoHref}>
-          Request beta access
-        </a>
+        <div class="header-actions">
+          <a class="button header-cta" href={betaMailtoHref}>
+            {primaryCtas.requestBeta.label}
+          </a>
+          <button
+            class="button button-ghost theme-toggle hidden-mobile"
+            data-theme-toggle
+            type="button"
+          >
+            <span class="sr-only" data-theme-toggle-label
+              >Current theme: Dark</span
+            >
+            <span class="theme-toggle-track" aria-hidden="true">
+              <span class="theme-toggle-thumb"></span>
+              <span class="theme-toggle-icon theme-toggle-icon-sun">
+                <MarketingIcon name="sun-medium" size={16} />
+              </span>
+              <span class="theme-toggle-icon theme-toggle-icon-moon">
+                <MarketingIcon name="moon-star" size={16} />
+              </span>
+            </span>
+          </button>
+
+          <details class="mobile-nav">
+            <summary class="nav-toggle">Menu</summary>
+            <div class="mobile-nav-panel">
+              <nav class="site-nav site-nav-mobile" aria-label="Mobile primary">
+                {
+                  siteConfig.navLinks.map((link: SiteLink) => (
+                    <a
+                      class:list={[
+                        "nav-link",
+                        { "is-active": isActive(link.pathname) },
+                      ]}
+                      href={withBase(link.pathname)}
+                      aria-current={
+                        isActive(link.pathname) ? "page" : undefined
+                      }
+                    >
+                      {link.label}
+                    </a>
+                  ))
+                }
+              </nav>
+
+              <div class="mobile-nav-actions">
+                <a class="button" href={betaMailtoHref}>
+                  {primaryCtas.requestBeta.label}
+                </a>
+                <button
+                  class="button button-ghost theme-toggle"
+                  data-theme-toggle
+                  type="button"
+                >
+                  <span class="sr-only" data-theme-toggle-label
+                    >Current theme: Dark</span
+                  >
+                  <span class="theme-toggle-track" aria-hidden="true">
+                    <span class="theme-toggle-thumb"></span>
+                    <span class="theme-toggle-icon theme-toggle-icon-sun">
+                      <MarketingIcon name="sun-medium" size={16} />
+                    </span>
+                    <span class="theme-toggle-icon theme-toggle-icon-moon">
+                      <MarketingIcon name="moon-star" size={16} />
+                    </span>
+                  </span>
+                </button>
+                <a class="button button-secondary" href={siteConfig.appUrl}>
+                  Open the Embedded App
+                </a>
+              </div>
+            </div>
+          </details>
+        </div>
       </header>
 
-      <main>
+      <main id="main-content">
         <slot />
       </main>
 
       <footer class="site-footer">
-        <div class="footer-band">
-          <div>
-            <p class="eyebrow">Closed beta, trust first</p>
-            <h2>Category changes stay reviewable, explainable, and reversible.</h2>
-          </div>
+        <div class="footer-shell">
+          <div class="footer-band">
+            <div class="footer-band-copy">
+              <div class="footer-kicker">
+                <MarketingIcon name="sparkles" />
+                <p class="eyebrow">Closed beta, trust first</p>
+              </div>
+              <h2>{siteConfig.trustStatement}</h2>
+              <p>
+                Public messaging stays aligned with the current product:
+                deterministic review, explicit apply, rollback visibility, and
+                optional AI fallback support.
+              </p>
+            </div>
 
-          <div class="footer-actions">
-            <a class="button" href={betaMailtoHref}>Start the beta conversation</a>
-            <a class="button button-secondary" href={siteConfig.appUrl}>Open the embedded app</a>
-          </div>
-        </div>
-
-        <div class="footer-grid">
-          <div>
-            <strong>{siteConfig.name}</strong>
-            <p>
-              Public marketing and compliance surface for a Shopify category review workflow with
-              preview-before-write safeguards.
-            </p>
-          </div>
-
-          <div>
-            <strong>Explore</strong>
-            <div class="footer-links">
-              {siteConfig.navLinks.map((link: SiteLink) => (
-                <a href={withBase(link.pathname)}>{link.label}</a>
-              ))}
+            <div class="footer-actions">
+              <a class="button" href={betaMailtoHref}
+                >Start the Beta Conversation</a
+              >
+              <a class="button button-ghost" href={siteConfig.appUrl}
+                >Open the Embedded App</a
+              >
             </div>
           </div>
 
-          <div>
-            <strong>Legal</strong>
-            <div class="footer-links">
-              {siteConfig.footerLinks.map((link: SiteLink) => (
-                <a href={withBase(link.pathname)}>{link.label}</a>
-              ))}
-            </div>
-          </div>
+          <div class="footer-divider" aria-hidden="true"></div>
 
-          <div>
-            <strong>Support</strong>
-            <div class="footer-links">
-              <a href={createMailtoHref("CategoryFix support request")}>{siteConfig.supportEmail}</a>
-              <a href={siteConfig.appUrl}>Embedded app</a>
+          <div class="footer-grid">
+            <div class="footer-section footer-section-brand">
+              <strong>{siteConfig.name}</strong>
+              <p>
+                Public marketing and compliance surface for a Shopify category
+                review workflow with preview-before-write safeguards.
+              </p>
+            </div>
+
+            <div class="footer-section">
+              <div class="footer-section-heading">
+                <MarketingIcon name="compass" size={16} />
+                <strong>Explore</strong>
+              </div>
+              <div class="footer-links">
+                {
+                  siteConfig.navLinks.map((link: SiteLink) => (
+                    <a href={withBase(link.pathname)}>{link.label}</a>
+                  ))
+                }
+              </div>
+            </div>
+
+            <div class="footer-section">
+              <div class="footer-section-heading">
+                <MarketingIcon name="shield-check" size={16} />
+                <strong>Legal</strong>
+              </div>
+              <div class="footer-links">
+                {
+                  siteConfig.footerLinks.map((link: SiteLink) => (
+                    <a href={withBase(link.pathname)}>{link.label}</a>
+                  ))
+                }
+              </div>
+            </div>
+
+            <div class="footer-section">
+              <div class="footer-section-heading">
+                <MarketingIcon name="life-buoy" size={16} />
+                <strong>Support</strong>
+              </div>
+              <div class="footer-links">
+                <a href={createMailtoHref("CategoryFix support request")}
+                  >{siteConfig.supportEmail}</a
+                >
+                <a href={siteConfig.appUrl}>Embedded app</a>
+              </div>
             </div>
           </div>
         </div>
       </footer>
     </div>
+    <script is:inline set:html={themeRuntimeScript} />
   </body>
 </html>

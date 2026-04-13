@@ -1,0 +1,26 @@
+---
+import type { ActionLink } from "../content/site.js";
+
+interface Props {
+  actions: ActionLink[];
+  className?: string;
+}
+
+const { actions, className } = Astro.props;
+---
+
+<div class:list={["action-group", className]}>
+  {actions.map((action) => (
+    <a
+      class:list={[
+        "button",
+        action.variant === "secondary" && "button-secondary",
+        action.variant === "ghost" && "button-ghost",
+      ]}
+      href={action.href}
+      aria-label={action.ariaLabel}
+    >
+      {action.label}
+    </a>
+  ))}
+</div>

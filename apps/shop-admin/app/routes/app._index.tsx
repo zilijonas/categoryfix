@@ -2,6 +2,14 @@ import { startTransition, useEffect, useState } from "react";
 import { Link, useLoaderData, useRevalidator } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import {
+  AdminPage,
+  AdminPanel,
+  InlineMessage,
+  MetricGrid,
+  StatusBadge,
+  buttonClassName,
+} from "../components/admin-ui.js";
+import {
   createScanDashboardResponse,
   type ScanDashboardPayload,
 } from "../lib/scan-review.server.js";
@@ -60,17 +68,17 @@ function isActiveScan(payload: ScanStatusPayload) {
   return payload.scanRun?.status === "PENDING" || payload.scanRun?.status === "RUNNING";
 }
 
-function renderStatusTone(status: string) {
+function renderStatusTone(status: string): "success" | "danger" | "warning" | "neutral" {
   switch (status) {
     case "SUCCEEDED":
-      return "#1f7a1f";
+      return "success";
     case "FAILED":
-      return "#8a1f17";
+      return "danger";
     case "RUNNING":
     case "PENDING":
-      return "#6f4e00";
+      return "warning";
     default:
-      return "#444";
+      return "neutral";
   }
 }
 
@@ -164,18 +172,102 @@ export default function AppIndexRoute() {
     ? `/app/scans/${scanPayload.scanRun.id}`
     : data.reviewPath;
   const scanIsRunning = isActiveScan(scanPayload);
+  const latestScanItems = [
+    {
+      label: "Status",
+      value: (
+        <StatusBadge tone={renderStatusTone(scanPayload.scanRun?.status ?? "UNKNOWN")}>
+          {scanPayload.scanRun?.status ?? "No scan recorded yet"}
+        </StatusBadge>
+      ),
+      tone: renderStatusTone(scanPayload.scanRun?.status ?? "UNKNOWN"),
+    },
+    {
+      label: "Started",
+      value: formatTimestamp(scanPayload.scanRun?.startedAt ?? null),
+    },
+    {
+      label: "Completed",
+      value: formatTimestamp(scanPayload.scanRun?.completedAt ?? null),
+    },
+    {
+      label: "Products scanned",
+      value: scanPayload.scanRun?.scannedProductCount ?? 0,
+    },
+    {
+      label: "Findings persisted",
+      value: scanPayload.scanRun?.findingCount ?? 0,
+    },
+    {
+      label: "Accepted for future apply",
+      value: scanPayload.scanRun?.acceptedFindingCount ?? 0,
+    },
+    {
+      label: "Dismissed",
+      value: scanPayload.scanRun?.rejectedFindingCount ?? 0,
+    },
+    {
+      label: "Exact",
+      value: scanPayload.confidenceCounts.exact,
+    },
+    {
+      label: "Strong",
+      value: scanPayload.confidenceCounts.strong,
+    },
+    {
+      label: "Review required",
+      value: scanPayload.confidenceCounts.reviewRequired,
+    },
+    {
+      label: "No safe suggestion",
+      value: scanPayload.confidenceCounts.noSafeSuggestion,
+    },
+  ] as const;
+  const freshnessItems = [
+    {
+      label: "Auto-rescan pending",
+      value: data.freshness.autoRescanPending ? "Yes" : "No",
+      tone: data.freshness.autoRescanPending ? "warning" : "neutral",
+    },
+    {
+      label: "Recent product webhook deliveries",
+      value: data.freshness.recentWebhookDeliveryCount,
+    },
+    {
+      label: "Latest webhook scan",
+      value: data.freshness.lastWebhookScan
+        ? `${data.freshness.lastWebhookScan.status} at ${formatTimestamp(
+            data.freshness.lastWebhookScan.completedAt ??
+              data.freshness.lastWebhookScan.startedAt,
+          )}`
+        : "No webhook-triggered scan yet",
+    },
+  ] as const;
+  const installationChips = [
+    { label: "Shop", value: data.shop },
+    { label: "Install state", value: data.installation?.state ?? "MISSING_RECORD" },
+    {
+      label: "Scopes",
+      value: data.installation?.scopes.length
+        ? data.installation.scopes.join(", ")
+        : "No scopes recorded yet",
+    },
+    { label: "Installed at", value: data.installation?.installedAt ?? "Not recorded yet" },
+  ];
 
   return (
-    <s-page heading="CategoryFix review">
-      <s-section heading="Merchant review workspace">
-        <div style={{ display: "grid", gap: "0.75rem" }}>
-          <p style={{ margin: 0 }}>
-            Inspect explainable category suggestions before any write occurs.
-            Safe deterministic findings can be bulk accepted, while review-only
-            suggestions stay visibly uncertain.
-          </p>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+    <AdminPage
+      eyebrow="Merchant review workspace"
+      title="CategoryFix review"
+      description="Inspect explainable category suggestions before any write occurs. Safe deterministic findings can be bulk accepted, while review-only suggestions stay visibly uncertain."
+    >
+      <AdminPanel
+        title="Merchant review workspace"
+        subtitle="This is the control surface for scan starts, review entry, and trust-preserving visibility into the current shop state."
+        actions={
+          <div className="admin-inline-actions">
             <button
+              className={buttonClassName()}
               disabled={isStarting || scanIsRunning}
               onClick={() => {
                 void startScan();
@@ -184,118 +276,77 @@ export default function AppIndexRoute() {
             >
               {isStarting ? "Starting scan..." : scanIsRunning ? "Scan running" : "Start scan"}
             </button>
-            {latestReviewPath ? <Link to={latestReviewPath}>Open latest review</Link> : null}
-            <a href={data.scanEndpoint}>Latest scan JSON</a>
+            {latestReviewPath ? (
+              <Link className={buttonClassName("secondary")} to={latestReviewPath}>
+                Open latest review
+              </Link>
+            ) : null}
+            <a className={buttonClassName("ghost")} href={data.scanEndpoint}>
+              Latest scan JSON
+            </a>
           </div>
-          {errorMessage ? (
-            <p style={{ margin: 0, color: "#8a1f17" }}>{errorMessage}</p>
-          ) : null}
-          {scanPayload.scanRun?.failureSummary ? (
-            <p style={{ margin: 0, color: "#8a1f17" }}>
-              Latest failure: {scanPayload.scanRun.failureSummary}
+        }
+        tone="forest"
+      >
+        {errorMessage ? <InlineMessage tone="danger">{errorMessage}</InlineMessage> : null}
+        {scanPayload.scanRun?.failureSummary ? (
+          <InlineMessage tone="danger">
+            Latest failure: {scanPayload.scanRun.failureSummary}
+          </InlineMessage>
+        ) : null}
+      </AdminPanel>
+
+      <AdminPanel title="Latest scan">
+        <MetricGrid columns={4} items={latestScanItems} />
+      </AdminPanel>
+
+      <AdminPanel title="Freshness status">
+        <MetricGrid columns={3} items={freshnessItems} />
+        {data.freshness.latestIssue ? (
+          <InlineMessage tone="danger">
+            <p>Latest freshness issue: {data.freshness.latestIssue.status}</p>
+            <p>
+              {data.freshness.latestIssue.lastError ??
+                "CategoryFix could not finish a freshness job."}
             </p>
-          ) : null}
-        </div>
-      </s-section>
+            <p>Recovery: run a manual scan.</p>
+          </InlineMessage>
+        ) : null}
+      </AdminPanel>
 
-      <s-section heading="Latest scan">
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          <p style={{ margin: 0 }}>
-            Status:{" "}
-            <strong style={{ color: renderStatusTone(scanPayload.scanRun?.status ?? "UNKNOWN") }}>
-              {scanPayload.scanRun?.status ?? "No scan recorded yet"}
-            </strong>
-          </p>
-          <p style={{ margin: 0 }}>
-            Started: {formatTimestamp(scanPayload.scanRun?.startedAt ?? null)}
-          </p>
-          <p style={{ margin: 0 }}>
-            Completed: {formatTimestamp(scanPayload.scanRun?.completedAt ?? null)}
-          </p>
-          <p style={{ margin: 0 }}>
-            Products scanned: {scanPayload.scanRun?.scannedProductCount ?? 0}
-          </p>
-          <p style={{ margin: 0 }}>
-            Findings persisted: {scanPayload.scanRun?.findingCount ?? 0}
-          </p>
-          <p style={{ margin: 0 }}>
-            Accepted for future apply: {scanPayload.scanRun?.acceptedFindingCount ?? 0}
-          </p>
-          <p style={{ margin: 0 }}>
-            Dismissed: {scanPayload.scanRun?.rejectedFindingCount ?? 0}
-          </p>
-          <p style={{ margin: 0 }}>Exact: {scanPayload.confidenceCounts.exact}</p>
-          <p style={{ margin: 0 }}>Strong: {scanPayload.confidenceCounts.strong}</p>
-          <p style={{ margin: 0 }}>
-            Review required: {scanPayload.confidenceCounts.reviewRequired}
-          </p>
-          <p style={{ margin: 0 }}>
-            No safe suggestion: {scanPayload.confidenceCounts.noSafeSuggestion}
-          </p>
-        </div>
-      </s-section>
-
-      <s-section heading="Freshness status">
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          <p style={{ margin: 0 }}>
-            Auto-rescan pending: {data.freshness.autoRescanPending ? "Yes" : "No"}
-          </p>
-          <p style={{ margin: 0 }}>
-            Recent product webhook deliveries: {data.freshness.recentWebhookDeliveryCount}
-          </p>
-          <p style={{ margin: 0 }}>
-            Latest webhook scan:{" "}
-            {data.freshness.lastWebhookScan
-              ? `${data.freshness.lastWebhookScan.status} at ${formatTimestamp(
-                  data.freshness.lastWebhookScan.completedAt ??
-                    data.freshness.lastWebhookScan.startedAt,
-                )}`
-              : "No webhook-triggered scan yet"}
-          </p>
-          {data.freshness.latestIssue ? (
-            <>
-              <p style={{ margin: 0, color: "#8a1f17" }}>
-                Latest freshness issue: {data.freshness.latestIssue.status}
-              </p>
-              <p style={{ margin: 0, color: "#8a1f17" }}>
-                {data.freshness.latestIssue.lastError ??
-                  "CategoryFix could not finish a freshness job."}
-              </p>
-              <p style={{ margin: 0 }}>Recovery: run a manual scan.</p>
-            </>
-          ) : null}
-        </div>
-      </s-section>
-
-      <s-section heading="Scan history">
+      <AdminPanel title="Scan history">
         {data.scanHistory.length ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="admin-table-shell">
+            <table className="admin-table">
               <thead>
                 <tr>
-                  <th align="left">Run</th>
-                  <th align="left">Status</th>
-                  <th align="left">Completed</th>
-                  <th align="right">Findings</th>
-                  <th align="right">Accepted</th>
-                  <th align="right">Dismissed</th>
-                  <th align="left">Review</th>
+                  <th>Run</th>
+                  <th>Status</th>
+                  <th>Completed</th>
+                  <th>Findings</th>
+                  <th>Accepted</th>
+                  <th>Dismissed</th>
+                  <th>Review</th>
                 </tr>
               </thead>
               <tbody>
                 {data.scanHistory.map((scan) => (
                   <tr key={scan.id}>
-                    <td style={{ padding: "0.4rem 0" }}>
-                      <div style={{ display: "grid", gap: "0.2rem" }}>
-                        <span>{scan.id}</span>
-                        <span>{scan.trigger === "WEBHOOK" ? "Webhook refresh" : "Manual scan"}</span>
+                    <td>
+                      <div className="admin-stack">
+                        <strong>{scan.id}</strong>
+                        <span className="admin-soft">
+                          {scan.trigger === "WEBHOOK" ? "Webhook refresh" : "Manual scan"}
+                        </span>
                       </div>
                     </td>
-                    <td style={{ color: renderStatusTone(scan.status) }}>{scan.status}</td>
+                    <td>
+                      <StatusBadge tone={renderStatusTone(scan.status)}>{scan.status}</StatusBadge>
+                    </td>
                     <td>{formatTimestamp(scan.completedAt)}</td>
-                    <td align="right">{scan.findingCount}</td>
-                    <td align="right">{scan.acceptedFindingCount}</td>
-                    <td align="right">{scan.rejectedFindingCount}</td>
+                    <td>{scan.findingCount}</td>
+                    <td>{scan.acceptedFindingCount}</td>
+                    <td>{scan.rejectedFindingCount}</td>
                     <td>
                       <Link to={`/app/scans/${scan.id}`}>Open review</Link>
                     </td>
@@ -305,30 +356,21 @@ export default function AppIndexRoute() {
             </table>
           </div>
         ) : (
-          <p style={{ margin: 0 }}>
-            No scan history yet. Start a scan to generate deterministic review
-            suggestions.
+          <p className="admin-empty">
+            No scan history yet. Start a scan to generate deterministic review suggestions.
           </p>
         )}
-      </s-section>
+      </AdminPanel>
 
-      <s-section heading="Current shop">
-        <s-stack direction="block" gap="small">
-          <s-text>{data.shop}</s-text>
-          <s-text>
-            Install state: {data.installation?.state ?? "MISSING_RECORD"}
-          </s-text>
-          <s-text>
-            Scopes:{" "}
-            {data.installation?.scopes.length
-              ? data.installation.scopes.join(", ")
-              : "No scopes recorded yet"}
-          </s-text>
-          <s-text>
-            Installed at: {data.installation?.installedAt ?? "Not recorded yet"}
-          </s-text>
-        </s-stack>
-      </s-section>
-    </s-page>
+      <AdminPanel title="Current shop">
+        <div className="admin-chip-row">
+          {installationChips.map((item) => (
+            <div className="admin-chip" key={item.label}>
+              <strong>{item.label}:</strong> {item.value}
+            </div>
+          ))}
+        </div>
+      </AdminPanel>
+    </AdminPage>
   );
 }

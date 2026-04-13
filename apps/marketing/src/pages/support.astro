@@ -1,75 +1,64 @@
 ---
+import FeatureCard from "../components/FeatureCard.astro";
+import PageHero from "../components/PageHero.astro";
+import SectionShell from "../components/SectionShell.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
-import { betaMailtoHref, createMailtoHref, siteConfig, withBase } from "../content/site.js";
+import { betaMailtoHref, primaryCtas, siteConfig, supportMailtoHref, withBase } from "../content/site.js";
+
+const supportReasons = [
+  {
+    title: "Recommendation Questions",
+    body: "Reach out when a recommendation basis looks incomplete, unclear, or mismatched with your catalog expectations.",
+  },
+  {
+    title: "Apply or Rollback Follow-Up",
+    body: "Contact support if an apply or rollback job needs review, especially when Shopify category state changed again after the original write.",
+  },
+  {
+    title: "Privacy or Beta Access Requests",
+    body: "Use the same email channel for privacy questions, support routing, and closed-beta access requests.",
+  },
+  {
+    title: "Operational Constraints",
+    body: "Share timing, catalog risk, or rollout concerns so the beta team can respond with the right context instead of generic advice.",
+  },
+];
 ---
 
 <MarketingLayout
   title="Support"
   description="Support page for CategoryFix closed-beta merchants, with contact expectations and product guidance links."
 >
-  <section class="page-hero">
-    <p class="eyebrow">Support</p>
-    <h1>Support starts with a direct email channel during beta.</h1>
-    <p>
-      Closed-beta support is currently email-based. Reach the team at{" "}
-      <a href={`mailto:${siteConfig.supportEmail}`}>{siteConfig.supportEmail}</a> and include store
-      context, scan or job identifiers when available, and a short description of what changed.
-    </p>
-  </section>
+  <PageHero
+    eyebrow="Support"
+    title="Support Starts with a Direct Email Channel During Beta."
+    intro={`Closed-beta support is currently email-based. Reach the team at ${siteConfig.supportEmail} and include store context, scan or job identifiers when available, and a short description of what changed.`}
+    actions={[primaryCtas.contactSupport, { ...primaryCtas.viewDocs, href: withBase("/docs") }]}
+  />
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">When to contact support</p>
-        <h2>Use the support channel when the workflow needs a human check-in.</h2>
-      </div>
-    </div>
-
+  <SectionShell
+    eyebrow="When to Contact Support"
+    title="Use the Support Channel When the Workflow Needs a Human Check-In."
+    intro="The goal is not to replace judgment. The goal is to make it clear when judgment should enter the flow."
+  >
     <div class="support-grid">
-      <article class="card">
-        <h3>Recommendation questions</h3>
-        <p>
-          Reach out when a recommendation basis looks incomplete, unclear, or mismatched with your
-          catalog expectations.
-        </p>
-      </article>
-      <article class="card">
-        <h3>Apply or rollback follow-up</h3>
-        <p>
-          Contact support if an apply or rollback job needs review, especially when a product
-          category changed again in Shopify after the original write.
-        </p>
-      </article>
-      <article class="card">
-        <h3>Privacy or beta access requests</h3>
-        <p>
-          Use the same email channel for privacy questions, support routing, and closed-beta access
-          requests.
-        </p>
-      </article>
-      <article class="card">
-        <h3>Submission-era expectations</h3>
-        <p>
-          The current beta keeps merchant approval in the loop for category writes and does not use
-          live billing during review readiness.
-        </p>
-      </article>
+      {supportReasons.map((item) => (
+        <FeatureCard title={item.title} body={item.body} />
+      ))}
     </div>
-  </section>
+  </SectionShell>
 
-  <section class="section">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Helpful links</p>
-        <h2>Follow the product guidance before escalating</h2>
-      </div>
+  <SectionShell
+    eyebrow="Helpful Links"
+    title="Follow the Product Guidance Before Escalating."
+    intro="These routes mirror the current beta support model and keep support conversations grounded in the product that exists today."
+    tone="tint"
+  >
+    <div class="action-group">
+      <a class="button" href={supportMailtoHref}>Email Support</a>
+      <a class="button button-secondary" href={withBase("/docs")}>Read Merchant Docs</a>
+      <a class="button button-secondary" href={withBase("/privacy")}>Review Privacy Summary</a>
+      <a class="button button-ghost" href={betaMailtoHref}>Request Beta Access</a>
     </div>
-
-    <div class="stacked-actions">
-      <a class="button" href={createMailtoHref("CategoryFix support request")}>Email support</a>
-      <a class="button button-secondary" href={withBase("/docs")}>Read merchant docs</a>
-      <a class="button button-secondary" href={withBase("/privacy")}>Review privacy summary</a>
-      <a class="button button-secondary" href={betaMailtoHref}>Request beta access</a>
-    </div>
-  </section>
+  </SectionShell>
 </MarketingLayout>
